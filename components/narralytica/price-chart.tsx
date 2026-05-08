@@ -87,9 +87,24 @@ interface PriceChartProps {
   newsMarkers?: NewsMarker[];
   hoveredNewsId?: string | null;
   onNewsHover?: (id: string | null) => void;
+  compact?: boolean;
+  compactHeight?: number;
+  compactCandles?: number;
+  compactChangePct?: number | null;
+  onLatestPrice?: (price: number | null) => void;
 }
 
-export function PriceChart({ asset, newsMarkers = [], hoveredNewsId, onNewsHover }: PriceChartProps) {
+export function PriceChart({
+  asset,
+  newsMarkers = [],
+  hoveredNewsId,
+  onNewsHover,
+  compact = false,
+  compactHeight = 300,
+  compactCandles = 72,
+  compactChangePct = null,
+  onLatestPrice,
+}: PriceChartProps) {
   const [candles, setCandles] = useState<Candle[]>([]);
   const [loading, setLoading]  = useState(true);
   const [error, setError]      = useState(false);
@@ -166,12 +181,18 @@ export function PriceChart({ asset, newsMarkers = [], hoveredNewsId, onNewsHover
     };
   }, [asset]);
 
-  const display = candles.slice(-100);
+  const display = candles.slice(-(compact ? compactCandles : 100));
   const lastCandle = display[display.length - 1] ?? null;
   const firstCandle = display[0] ?? null;
   const priceChange = lastCandle && firstCandle
     ? ((lastCandle.close - firstCandle.open) / firstCandle.open) * 100 : null;
   const isUp = priceChange !== null ? priceChange >= 0 : true;
+  const compactIsUp = compactChangePct != null ? compactChangePct >= 0 : isUp;
+  const compactTone = compactIsUp ? BULL : BEAR;
+
+  useEffect(() => {
+    onLatestPrice?.(lastCandle?.close ?? null);
+  }, [lastCandle?.close, onLatestPrice]);
 
   // Price range
   const highs = display.map(d => d.high);
@@ -182,22 +203,39 @@ export function PriceChart({ asset, newsMarkers = [], hoveredNewsId, onNewsHover
   const yMin = rawMin - pad;
   const yMax = rawMax + pad;
 
-  const drawW = Math.max(0, width - PAD_LEFT - PAD_RIGHT);
-  const chartH = width > 0 && width < 640 ? MOBILE_CHART_H : CHART_H;
-  const drawH = chartH - PAD_TOP - PAD_BOT;
+  const compactPadRight = 14;
+  const compactPadBottom = 12;
+  const chartH = compact ? compactHeight : width > 0 && width < 640 ? MOBILE_CHART_H : CHART_H;
+  const rightPad = compact ? compactPadRight : PAD_RIGHT;
+  const bottomPad = compact ? compactPadBottom : PAD_BOT;
+  const drawW = Math.max(0, width - PAD_LEFT - rightPad);
+  const effectiveDrawH = chartH - PAD_TOP - bottomPad;
   const toX = (i: number) => PAD_LEFT + (i / (display.length - 1 || 1)) * drawW;
-  const toY = (price: number) => PAD_TOP + drawH - ((price - yMin) / (yMax - yMin)) * drawH;
+  const toY = (price: number) => PAD_TOP + effectiveDrawH - ((price - yMin) / (yMax - yMin)) * effectiveDrawH;
 
-  // Y-axis ticks — 4 evenly spaced
-  const yTicks = Array.from({ length: 4 }, (_, i) => yMin + (yMax - yMin) * (i / 3));
+  // Y-axis ticks — keep compact hero mode light, not empty.
+  const yTickCount = compact ? 3 : 4;
+  const yTicks = Array.from({ length: yTickCount }, (_, i) => yMin + (yMax - yMin) * (i / Math.max(1, yTickCount - 1)));
   // X-axis ticks — 5 evenly spaced
-  const xTickCount = 5;
+  const xTickCount = compact ? 3 : 5;
   const xTicks = Array.from({ length: xTickCount }, (_, i) =>
     Math.round((i / (xTickCount - 1)) * (display.length - 1))
   );
 
   const slotW   = display.length > 1 ? drawW / display.length : drawW;
-  const candleW = Math.max(1, slotW * 0.6);
+  const candleW = compact ? Math.max(2, Math.min(6, slotW * 0.72)) : Math.max(1, slotW * 0.6);
+  const closePoints = display.map((d, i) => ({ x: toX(i), y: toY(d.close), candle: d }));
+  const linePath = closePoints.length
+    ? closePoints.map((point, index) => `${index === 0 ? "M" : "L"} ${point.x} ${point.y}`).join(" ")
+    : "";
+  const areaPath = closePoints.length
+    ? [
+        `M ${closePoints[0].x} ${chartH - bottomPad}`,
+        ...closePoints.map((point, index) => `${index === 0 ? "L" : "L"} ${point.x} ${point.y}`),
+        `L ${closePoints[closePoints.length - 1].x} ${chartH - bottomPad}`,
+        "Z",
+      ].join(" ")
+    : "";
 
   function onMouseMove(e: React.MouseEvent<SVGSVGElement>) {
     if (!display.length || !width) return;
@@ -212,6 +250,7 @@ export function PriceChart({ asset, newsMarkers = [], hoveredNewsId, onNewsHover
   return (
     <div className="w-full" ref={containerRef}>
       {/* Price header */}
+      {!compact ? (
       <div className="flex items-baseline gap-3 px-6 py-4">
         <span className="text-[28px] font-mono leading-none tabular-nums font-bold" style={{ color: "var(--foreground)" }}>
           {lastCandle ? fmtPrice(lastCandle.close) : "—"}
@@ -225,6 +264,7 @@ export function PriceChart({ asset, newsMarkers = [], hoveredNewsId, onNewsHover
           {lastCandle ? new Date(lastCandle.time).toLocaleString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", hour12: false }) : ""}
         </span>
       </div>
+      ) : null}
 
       {loading && (
         <div style={{ height: chartH }} className="flex items-center justify-center">
@@ -250,15 +290,30 @@ export function PriceChart({ asset, newsMarkers = [], hoveredNewsId, onNewsHover
           onMouseMove={onMouseMove}
           onMouseLeave={() => setHovered(null)}
         >
+          <defs>
+            <linearGradient id={`movement-area-${asset}`} x1="0" x2="0" y1="0" y2="1">
+              <stop offset="0%" stopColor={compactTone} stopOpacity="0.46" />
+              <stop offset="58%" stopColor={compactTone} stopOpacity="0.18" />
+              <stop offset="100%" stopColor={compactTone} stopOpacity="0.02" />
+            </linearGradient>
+            <filter id={`movement-glow-${asset}`} x="-20%" y="-30%" width="140%" height="160%">
+              <feGaussianBlur stdDeviation="3" result="blur" />
+              <feMerge>
+                <feMergeNode in="blur" />
+                <feMergeNode in="SourceGraphic" />
+              </feMerge>
+            </filter>
+          </defs>
+
           {/* Grid lines */}
           {yTicks.map((tick, i) => (
-            <line key={i} x1={PAD_LEFT} x2={width - PAD_RIGHT} y1={toY(tick)} y2={toY(tick)}
+            <line key={i} x1={PAD_LEFT} x2={width - rightPad} y1={toY(tick)} y2={toY(tick)}
               stroke={GRID} strokeWidth={1} />
           ))}
 
           {/* Current price reference line */}
-          {lastCandle && (
-            <line x1={PAD_LEFT} x2={width - PAD_RIGHT}
+          {lastCandle && !compact && (
+            <line x1={PAD_LEFT} x2={width - rightPad}
               y1={toY(lastCandle.close)} y2={toY(lastCandle.close)}
               stroke={isUp ? BULL : BEAR} strokeWidth={1} strokeDasharray="3 3" strokeOpacity={0.5} />
           )}
@@ -266,10 +321,12 @@ export function PriceChart({ asset, newsMarkers = [], hoveredNewsId, onNewsHover
           {/* Crosshair */}
           {hovered && (
             <>
-              <line x1={hovered.x} x2={hovered.x} y1={PAD_TOP} y2={chartH - PAD_BOT}
+              <line x1={hovered.x} x2={hovered.x} y1={PAD_TOP} y2={chartH - bottomPad}
                 stroke="#333" strokeWidth={1} />
-              <line x1={PAD_LEFT} x2={width - PAD_RIGHT} y1={hovered.y} y2={hovered.y}
-                stroke="#333" strokeWidth={1} strokeDasharray="2 2" />
+              {!compact ? (
+                <line x1={PAD_LEFT} x2={width - rightPad} y1={hovered.y} y2={hovered.y}
+                  stroke="#333" strokeWidth={1} strokeDasharray="2 2" />
+              ) : null}
             </>
           )}
 
@@ -301,7 +358,7 @@ export function PriceChart({ asset, newsMarkers = [], hoveredNewsId, onNewsHover
                   x1={mx} 
                   x2={mx} 
                   y1={PAD_TOP} 
-                  y2={chartH - PAD_BOT} 
+                  y2={chartH - bottomPad} 
                   stroke={isHovered ? "var(--accent)" : "rgba(255,255,255,0.1)"} 
                   strokeWidth={isHovered ? 2 : 1}
                   strokeDasharray="4 2"
@@ -316,8 +373,20 @@ export function PriceChart({ asset, newsMarkers = [], hoveredNewsId, onNewsHover
             );
           })}
 
+          {/* Movement area in compact mode */}
+          {compact ? (
+            <>
+              <path d={areaPath} fill={`url(#movement-area-${asset})`} />
+              <path d={linePath} fill="none" stroke={compactTone} strokeWidth={7} strokeLinecap="round" strokeLinejoin="round" strokeOpacity={0.1} filter={`url(#movement-glow-${asset})`} />
+              <path d={linePath} fill="none" stroke={compactTone} strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round" />
+              {hovered ? (
+                <circle cx={hovered.x} cy={hovered.y} r={4.5} fill={compactTone} stroke="#050505" strokeWidth={1.5} />
+              ) : null}
+            </>
+          ) : null}
+
           {/* Candlesticks */}
-          {display.map((d, i) => {
+          {!compact ? display.map((d, i) => {
             const cx      = PAD_LEFT + slotW * i + slotW / 2;
             const highY   = toY(d.high);
             const lowY    = toY(d.low);
@@ -332,30 +401,43 @@ export function PriceChart({ asset, newsMarkers = [], hoveredNewsId, onNewsHover
                 <rect x={cx - candleW / 2} y={bodyTop} width={candleW} height={bodyH} fill={color} fillOpacity={0.9} />
               </g>
             );
-          })}
+          }) : null}
 
           {/* Y-axis labels */}
-          {yTicks.map((tick, i) => (
+          {!compact ? yTicks.map((tick, i) => (
             <text key={i} x={width - PAD_RIGHT + 6} y={toY(tick) + 4}
               fill={LABEL} fontSize={10} fontFamily="var(--font-mono)" textAnchor="start">
               {fmtPrice(tick)}
             </text>
-          ))}
+          )) : null}
 
           {/* X-axis labels */}
-          {xTicks.map((idx, i) => display[idx] && (
+          {!compact ? xTicks.map((idx, i) => display[idx] && (
             <text key={i} x={PAD_LEFT + slotW * idx + slotW / 2} y={chartH - 6}
               fill={LABEL} fontSize={10} fontFamily="var(--font-mono)" textAnchor="middle">
               {fmtTime(display[idx].time)}
             </text>
-          ))}
+          )) : null}
 
           {/* Hover tooltip */}
           {hovered && (() => {
             const d = hovered.candle;
             const pct = ((d.close - d.open) / d.open * 100).toFixed(2);
-            const tipX = Math.min(hovered.x + 10, width - 180);
-            const tipY = Math.max(PAD_TOP + 4, hovered.y - 60);
+            const compactTipW = 88;
+            const compactTipH = 28;
+            const tipX = compact ? Math.min(hovered.x + 10, width - compactTipW - 4) : Math.min(hovered.x + 10, width - 180);
+            const tipY = compact ? Math.max(PAD_TOP + 4, hovered.y - 46) : Math.max(PAD_TOP + 4, hovered.y - 60);
+            if (compact) {
+              return (
+                <g>
+                  <rect x={tipX} y={tipY} width={compactTipW} height={compactTipH} rx={3}
+                    fill="#0d0d0d" stroke="#222" strokeWidth={1} />
+                  <text x={tipX + 10} y={tipY + 18} fill="#ddd" fontSize={12} fontFamily="var(--font-mono)" fontWeight={700}>
+                    {fmtPrice(d.close)}
+                  </text>
+                </g>
+              );
+            }
             return (
               <g>
                 <rect x={tipX} y={tipY} width={170} height={72} rx={3}

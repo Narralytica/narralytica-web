@@ -1,111 +1,91 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import relationshipData from "@/market_relationship.json";
-import type { NewsItem } from "@/lib/supabase/data";
 
-interface SeriesPoint {
+interface Candle {
   time: number;
-  value: number;
+  close: number;
 }
 
 interface SeriesData {
   asset: string;
-  candles: SeriesPoint[];
-  color: string;
+  candles: Candle[];
+  normalized: Candle[];
 }
 
+interface NewsEvent {
+  id: string;
+  title: string;
+  content: string;
+  timestamp: number;
+  source: string;
+}
+
+type RelationshipGroup = "crypto" | "macro" | "equities" | "sosovalue";
+type Lookback = "24H" | "3D" | "7D";
+
 const B = "var(--border-subtle)";
-const GRID = "#161616";
-const LABEL = "#444444";
-const PAD_TOP = 12;
-const PAD_BOT = 30;
-const PAD_LEFT = 0;
-const PAD_RIGHT = 84;
-const CHART_H = 320;
-const NEWS_CHART_H = 340;
-const TOP_FIVE = ["BTC", "ETH", "SOL", "XRP", "BNB"] as const;
-const LOOKBACK_OPTIONS = ["6H", "12H", "24H", "3D", "7D"] as const;
-const INTERVAL_OPTIONS = ["1m", "5m", "15m", "30m", "1h", "4h"] as const;
-const NEWS_WINDOW_OPTIONS = ["24H", "3D", "7D"] as const;
-const WAVE_CATEGORIES = ["crypto", "stocks", "commodities", "indexes"] as const;
-const WAVE_CATEGORY_LABELS: Record<(typeof WAVE_CATEGORIES)[number], string> = {
-  crypto: "Crypto",
-  stocks: "Stocks",
-  commodities: "Commodities",
-  indexes: "Indexes",
+const GREEN = "#22c55e";
+const RED = "#ef4444";
+const BLUE = "var(--accent)";
+const MUTED = "rgba(255,255,255,0.38)";
+const GRID = "rgba(255,255,255,0.075)";
+const CHART_H = 420;
+const PAD = { top: 28, right: 78, bottom: 42, left: 44 };
+
+const BASE_ASSETS = ["BTC", "ETH", "SOL", "XRP", "SUI", "DOGE"] as const;
+const LOOKBACKS: Lookback[] = ["24H", "3D", "7D"];
+const GROUPS: Record<RelationshipGroup, { label: string; assets: string[]; note: string }> = {
+  crypto: {
+    label: "Crypto Majors",
+    assets: ["BTC", "ETH", "SOL", "XRP", "BNB", "DOGE", "LINK", "AVAX", "SUI"],
+    note: "Token beta, rotation, and decoupling.",
+  },
+  macro: {
+    label: "Macro Hedges",
+    assets: ["USTECH100", "US500", "XAUT", "GOLD", "CL"],
+    note: "Risk assets, gold, oil, and crypto sensitivity.",
+  },
+  equities: {
+    label: "Equity Leaders",
+    assets: ["NVDA", "MSFT", "AAPL", "AMZN", "TSLA"],
+    note: "AI and megacap impulse against crypto.",
+  },
+  sosovalue: {
+    label: "SoSoValue Indices",
+    assets: ["MAG7SSI", "DEFISSI", "MEMESSI"],
+    note: "Native sector baskets versus the selected base.",
+  },
 };
-const WAVE_MARKETS: Record<(typeof WAVE_CATEGORIES)[number], string[]> = {
-  crypto: ["BTC", "ETH", "SOL", "XRP", "BNB"],
-  stocks: ["AAPL", "TSLA", "NVDA", "MSFT", "AMZN"],
-  commodities: ["XAUT", "CL", "SILVER", "COPPER", "GOLD"],
-  indexes: ["USTECH100", "US500", "MAG7SSI", "DEFISSI", "MEMESSI"],
-};
-const COLORS: Record<string, string> = {
-  BTC: "#f59e0b",
-  ETH: "#3b82f6",
-  SOL: "#8b5cf6",
-  XRP: "#22c55e",
-  BNB: "#eab308",
-  ADA: "#2563eb",
-  DOGE: "#f97316",
-  AVAX: "#ef4444",
-  LINK: "#06b6d4",
-  HBAR: "#94a3b8",
-  SUI: "#ec4899",
-  AAPL: "#60a5fa",
-  TSLA: "#ef4444",
-  NVDA: "#22c55e",
-  MSFT: "#38bdf8",
-  AMZN: "#f59e0b",
-  XAUT: "#fbbf24",
-  CL: "#fb7185",
-  SILVER: "#cbd5e1",
-  COPPER: "#f97316",
-  GOLD: "#fde047",
-  USTECH100: "#22c55e",
-  US500: "#60a5fa",
-  MAG7SSI: "#f97316",
-  DEFISSI: "#8b5cf6",
-  MEMESSI: "#ec4899",
-};
-const LOOKBACK_MS: Record<(typeof LOOKBACK_OPTIONS)[number], number> = {
-  "6H": 6 * 60 * 60 * 1000,
-  "12H": 12 * 60 * 60 * 1000,
+
+const LOOKBACK_MS: Record<Lookback, number> = {
   "24H": 24 * 60 * 60 * 1000,
   "3D": 3 * 24 * 60 * 60 * 1000,
   "7D": 7 * 24 * 60 * 60 * 1000,
 };
-const NEWS_WINDOW_MS: Record<(typeof NEWS_WINDOW_OPTIONS)[number], number> = {
-  "24H": 24 * 60 * 60 * 1000,
-  "3D": 3 * 24 * 60 * 60 * 1000,
-  "7D": 7 * 24 * 60 * 60 * 1000,
-};
-const INTERVAL_MS: Record<(typeof INTERVAL_OPTIONS)[number], number> = {
-  "1m": 60 * 1000,
-  "5m": 5 * 60 * 1000,
-  "15m": 15 * 60 * 1000,
-  "30m": 30 * 60 * 1000,
-  "1h": 60 * 60 * 1000,
-  "4h": 4 * 60 * 60 * 1000,
-};
-const NEWS_WINDOW_INTERVAL: Record<(typeof NEWS_WINDOW_OPTIONS)[number], (typeof INTERVAL_OPTIONS)[number]> = {
+
+const INTERVAL_BY_LOOKBACK: Record<Lookback, "5m" | "15m" | "1h"> = {
   "24H": "5m",
   "3D": "15m",
   "7D": "1h",
 };
+
+const INTERVAL_MS = {
+  "5m": 5 * 60 * 1000,
+  "15m": 15 * 60 * 1000,
+  "1h": 60 * 60 * 1000,
+};
+
 const KLINE_CONFIG: Partial<Record<string, { base: string; hasStartTime: boolean }>> = {
-  BTC:  { base: "https://mainnet-gw.sodex.dev/futures/fapi/market/v1/public/q/kline?symbol=BTC-USD", hasStartTime: true },
-  ETH:  { base: "https://mainnet-gw.sodex.dev/futures/fapi/market/v1/public/q/kline?symbol=ETH-USD", hasStartTime: true },
+  BTC: { base: "https://mainnet-gw.sodex.dev/futures/fapi/market/v1/public/q/kline?symbol=BTC-USD", hasStartTime: true },
+  ETH: { base: "https://mainnet-gw.sodex.dev/futures/fapi/market/v1/public/q/kline?symbol=ETH-USD", hasStartTime: true },
   DOGE: { base: "https://mainnet-gw.sodex.dev/pro/p/quotation/kline?symbol=vDOGE_vUSDC", hasStartTime: true },
-  ADA:  { base: "https://mainnet-gw.sodex.dev/pro/p/quotation/kline?symbol=vADA_vUSDC", hasStartTime: true },
-  SOL:  { base: "https://mainnet-gw.sodex.dev/pro/p/quotation/kline?symbol=vSOL_vUSDC", hasStartTime: true },
-  SUI:  { base: "https://mainnet-gw.sodex.dev/pro/p/quotation/kline?symbol=vSUI_vUSDC", hasStartTime: false },
-  BNB:  { base: "https://mainnet-gw.sodex.dev/pro/p/quotation/kline?symbol=vBNB_vUSDC", hasStartTime: true },
+  SOL: { base: "https://mainnet-gw.sodex.dev/pro/p/quotation/kline?symbol=vSOL_vUSDC", hasStartTime: true },
+  SUI: { base: "https://mainnet-gw.sodex.dev/pro/p/quotation/kline?symbol=vSUI_vUSDC", hasStartTime: false },
+  BNB: { base: "https://mainnet-gw.sodex.dev/pro/p/quotation/kline?symbol=vBNB_vUSDC", hasStartTime: true },
   LINK: { base: "https://mainnet-gw.sodex.dev/pro/p/quotation/kline?symbol=vLINK_vUSDC", hasStartTime: false },
-  XRP:  { base: "https://mainnet-gw.sodex.dev/pro/p/quotation/kline?symbol=vXRP_vUSDC", hasStartTime: true },
+  XRP: { base: "https://mainnet-gw.sodex.dev/pro/p/quotation/kline?symbol=vXRP_vUSDC", hasStartTime: true },
   AVAX: { base: "https://mainnet-gw.sodex.dev/pro/p/quotation/kline?symbol=vAVAX_vUSDC", hasStartTime: false },
-  HBAR: { base: "https://mainnet-gw.sodex.dev/futures/fapi/market/v1/public/q/kline?symbol=HBAR-USD", hasStartTime: false },
   AAPL: { base: "https://mainnet-gw.sodex.dev/futures/fapi/market/v1/public/q/kline?symbol=AAPL-USD", hasStartTime: true },
   TSLA: { base: "https://mainnet-gw.sodex.dev/futures/fapi/market/v1/public/q/kline?symbol=TSLA-USD", hasStartTime: true },
   NVDA: { base: "https://mainnet-gw.sodex.dev/futures/fapi/market/v1/public/q/kline?symbol=NVDA-USD", hasStartTime: true },
@@ -113,8 +93,6 @@ const KLINE_CONFIG: Partial<Record<string, { base: string; hasStartTime: boolean
   AMZN: { base: "https://mainnet-gw.sodex.dev/futures/fapi/market/v1/public/q/kline?symbol=AMZN-USD", hasStartTime: true },
   XAUT: { base: "https://mainnet-gw.sodex.dev/futures/fapi/market/v1/public/q/kline?symbol=XAUT-USD", hasStartTime: true },
   CL: { base: "https://mainnet-gw.sodex.dev/futures/fapi/market/v1/public/q/kline?symbol=CL-USD", hasStartTime: true },
-  SILVER: { base: "https://mainnet-gw.sodex.dev/futures/fapi/market/v1/public/q/kline?symbol=SILVER-USD", hasStartTime: true },
-  COPPER: { base: "https://mainnet-gw.sodex.dev/futures/fapi/market/v1/public/q/kline?symbol=COPPER-USD", hasStartTime: true },
   GOLD: { base: "https://mainnet-gw.sodex.dev/futures/fapi/market/v1/public/q/kline?symbol=GOLD-USD", hasStartTime: true },
   USTECH100: { base: "https://mainnet-gw.sodex.dev/futures/fapi/market/v1/public/q/kline?symbol=USTECH100-USD", hasStartTime: true },
   US500: { base: "https://mainnet-gw.sodex.dev/futures/fapi/market/v1/public/q/kline?symbol=US500-USD", hasStartTime: true },
@@ -123,746 +101,917 @@ const KLINE_CONFIG: Partial<Record<string, { base: string; hasStartTime: boolean
   MEMESSI: { base: "https://mainnet-gw.sodex.dev/pro/p/quotation/kline?symbol=MEMEssi%2FUSDC", hasStartTime: true },
 };
 
-function SectionLabel({ eyebrow, title, meta }: { eyebrow: string; title?: string; meta?: string }) {
+function klineUrl(asset: string, lookback: Lookback) {
+  const config = KLINE_CONFIG[asset];
+  if (!config) return null;
+
+  const interval = INTERVAL_BY_LOOKBACK[lookback];
+  const now = Date.now();
+  const limit = Math.min(500, Math.max(48, Math.ceil(LOOKBACK_MS[lookback] / INTERVAL_MS[interval])));
+  const start = now - LOOKBACK_MS[lookback];
+  let url = `${config.base}&interval=${interval}&limit=${limit}&endTime=${now}`;
+  if (config.hasStartTime) url += `&startTime=${start}`;
+  return url;
+}
+
+function parseCandle(raw: unknown): Candle | null {
+  if (Array.isArray(raw)) {
+    const time = Number(raw[0]);
+    const close = Number(raw[4] ?? raw[1]);
+    if (!Number.isFinite(time) || !Number.isFinite(close) || close <= 0) return null;
+    return { time, close };
+  }
+
+  if (!raw || typeof raw !== "object") return null;
+  const row = raw as Record<string, unknown>;
+  const time = Number(row.t ?? row.time ?? row.openTime ?? row.timestamp);
+  const close = Number(row.c ?? row.close ?? row.price);
+  if (!Number.isFinite(time) || !Number.isFinite(close) || close <= 0) return null;
+  return { time, close };
+}
+
+async function fetchSeries(asset: string, lookback: Lookback): Promise<SeriesData | null> {
+  const url = klineUrl(asset, lookback);
+  if (!url) return null;
+
+  const res = await fetch(url, { cache: "no-store" });
+  if (!res.ok) return null;
+  const payload = await res.json();
+  const rows = Array.isArray(payload?.data) ? payload.data : Array.isArray(payload) ? payload : [];
+  const candles = rows.map(parseCandle).filter((item): item is Candle => Boolean(item)).sort((a, b) => a.time - b.time);
+  if (candles.length < 3) return null;
+
+  const first = candles[0].close;
+  return {
+    asset,
+    candles,
+    normalized: candles.map((point) => ({ time: point.time, close: ((point.close - first) / first) * 100 })),
+  };
+}
+
+function pctMove(series?: SeriesData | null) {
+  if (!series?.normalized.length) return 0;
+  return series.normalized[series.normalized.length - 1].close;
+}
+
+function periodReturns(series?: SeriesData | null) {
+  if (!series) return [];
+  const values: number[] = [];
+  for (let i = 1; i < series.candles.length; i += 1) {
+    const prev = series.candles[i - 1].close;
+    const next = series.candles[i].close;
+    if (prev > 0) values.push(((next - prev) / prev) * 100);
+  }
+  return values;
+}
+
+function alignArrays(a: number[], b: number[]) {
+  const n = Math.min(a.length, b.length);
+  return [a.slice(a.length - n), b.slice(b.length - n)] as const;
+}
+
+function correlation(a: number[], b: number[]) {
+  const [x, y] = alignArrays(a, b);
+  if (x.length < 4) return 0;
+  const mx = x.reduce((sum, value) => sum + value, 0) / x.length;
+  const my = y.reduce((sum, value) => sum + value, 0) / y.length;
+  let cov = 0;
+  let vx = 0;
+  let vy = 0;
+  for (let i = 0; i < x.length; i += 1) {
+    const dx = x[i] - mx;
+    const dy = y[i] - my;
+    cov += dx * dy;
+    vx += dx * dx;
+    vy += dy * dy;
+  }
+  if (!vx || !vy) return 0;
+  return cov / Math.sqrt(vx * vy);
+}
+
+function beta(peerReturns: number[], baseReturns: number[]) {
+  const [peer, base] = alignArrays(peerReturns, baseReturns);
+  if (peer.length < 4) return 0;
+  const mb = base.reduce((sum, value) => sum + value, 0) / base.length;
+  const mp = peer.reduce((sum, value) => sum + value, 0) / peer.length;
+  let cov = 0;
+  let variance = 0;
+  for (let i = 0; i < peer.length; i += 1) {
+    cov += (base[i] - mb) * (peer[i] - mp);
+    variance += (base[i] - mb) ** 2;
+  }
+  return variance ? cov / variance : 0;
+}
+
+function fmtPct(value: number, digits = 2) {
+  return `${value >= 0 ? "+" : ""}${value.toFixed(digits)}%`;
+}
+
+function n(value: unknown): number | null {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function fmtRatio(value: unknown, digits = 2) {
+  const parsed = n(value);
+  if (parsed == null) return "--";
+  return `${parsed >= 0 ? "+" : ""}${(parsed * 100).toFixed(digits)}%`;
+}
+
+function compact(value: unknown) {
+  const parsed = n(value);
+  if (parsed == null) return "--";
+  return parsed.toLocaleString("en-US", { maximumFractionDigits: parsed >= 100 ? 0 : 2 });
+}
+
+function money(value: unknown) {
+  const parsed = n(value);
+  if (parsed == null) return "--";
+  const abs = Math.abs(parsed);
+  if (abs >= 1_000_000_000) return `$${(parsed / 1_000_000_000).toFixed(2)}B`;
+  if (abs >= 1_000_000) return `$${(parsed / 1_000_000).toFixed(2)}M`;
+  if (abs >= 1_000) return `$${(parsed / 1_000).toFixed(2)}K`;
+  return `$${parsed.toFixed(2)}`;
+}
+
+function dateLabel(value: unknown) {
+  if (!value) return "--";
+  const date = new Date(String(value));
+  if (Number.isNaN(date.getTime())) return String(value);
+  return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+}
+
+function fmtDecimal(value: number) {
+  return value.toFixed(2);
+}
+
+function eventTimestamp(raw: Record<string, unknown>) {
+  const value = raw.timestamp ?? raw.timestamp_ms ?? raw.release_time ?? raw.releaseTime ?? raw.timestampIso ?? raw.timestamp_iso;
+  const parsed = typeof value === "string" && Number.isNaN(Number(value)) ? Date.parse(value) : Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function normalizeNewsPayload(payload: unknown): NewsEvent[] {
+  const containers = [
+    payload,
+    payload && typeof payload === "object" ? (payload as Record<string, unknown>).data : null,
+    payload && typeof payload === "object" ? (payload as Record<string, unknown>).hot : null,
+    payload && typeof payload === "object" ? (payload as Record<string, unknown>).list : null,
+  ];
+
+  const rows =
+    containers.find(Array.isArray) ??
+    containers
+      .filter((item): item is Record<string, unknown> => Boolean(item) && typeof item === "object" && !Array.isArray(item))
+      .map((item) => item.list ?? item.records ?? item.hot ?? item.data)
+      .find(Array.isArray) ??
+    [];
+
+  return rows
+    .map((item, index): NewsEvent | null => {
+      if (!item || typeof item !== "object") return null;
+      const row = item as Record<string, unknown>;
+      const timestamp = eventTimestamp(row);
+      if (!timestamp) return null;
+      const title = String(row.title ?? row.original_title ?? row.originalTitle ?? "").trim();
+      const content = String(row.contentExcerpt ?? row.content_excerpt ?? row.content ?? "").trim();
+      return {
+        id: String(row.id ?? `${timestamp}-${index}`),
+        title: title || content.slice(0, 90) || "Market update",
+        content,
+        timestamp,
+        source: String(row.sourceType ?? row.source_type ?? row.source ?? "SoSoValue"),
+      };
+    })
+    .filter((item): item is NewsEvent => Boolean(item))
+    .sort((a, b) => b.timestamp - a.timestamp);
+}
+
+function relationshipState(corr: number, spread: number, baseMove: number, peerMove: number) {
+  const sameDirection = Math.sign(baseMove) === Math.sign(peerMove) || Math.abs(baseMove) < 0.15 || Math.abs(peerMove) < 0.15;
+  if (corr > 0.62 && sameDirection) return "confirming";
+  if (corr < -0.25) return "inverse";
+  if (Math.abs(spread) > 2.5) return "diverging";
+  return "loose";
+}
+
+function colorFor(value: number) {
+  if (value > 0.02) return GREEN;
+  if (value < -0.02) return RED;
+  return "var(--foreground-dim)";
+}
+
+function buildPath(points: Candle[], width: number, height: number, min: number, max: number) {
+  if (points.length < 2 || width <= 0) return "";
+  const innerW = width - PAD.left - PAD.right;
+  const innerH = height - PAD.top - PAD.bottom;
+  const range = max - min || 1;
+  return points
+    .map((point, index) => {
+      const x = PAD.left + (index / Math.max(1, points.length - 1)) * innerW;
+      const y = PAD.top + (1 - (point.close - min) / range) * innerH;
+      return `${index === 0 ? "M" : "L"} ${x.toFixed(2)} ${y.toFixed(2)}`;
+    })
+    .join(" ");
+}
+
+function StatBlock({ label, value, meta, tone }: { label: string; value: string; meta: string; tone?: string }) {
   return (
-    <div
-      className="flex flex-wrap items-center gap-2 border-b px-4 py-3 sm:gap-3 sm:px-6 sm:py-4"
-      style={{ background: "var(--surface)", borderColor: B }}
-    >
-      <span
-        className="text-[12px] font-mono uppercase tracking-[0.22em] font-bold"
-        style={{ color: "var(--foreground-dim)" }}
-      >
-        {eyebrow}
-      </span>
-      {title && (
-        <>
-          <span style={{ color: "var(--border)" }} className="text-[12px] font-mono">/</span>
-          <span
-            className="text-[12px] font-mono uppercase tracking-[0.14em] px-2 py-1 font-bold"
-            style={{
-              color: "var(--accent)",
-              background: "var(--accent-track)",
-              border: "1px solid var(--accent-track)",
-            }}
-          >
-            {title}
-          </span>
-        </>
-      )}
-      {meta && (
-        <span className="ml-auto text-[11px] font-mono tabular-nums font-semibold" style={{ color: "var(--foreground-faint)" }}>
-          {meta}
-        </span>
-      )}
+    <div className="border-r border-b px-5 py-4 lg:border-b-0" style={{ borderColor: B }}>
+      <p className="text-[10px] font-mono uppercase tracking-[0.26em]" style={{ color: "var(--foreground-faint)" }}>
+        {label}
+      </p>
+      <p className="mt-3 text-[24px] font-mono font-bold tabular-nums" style={{ color: tone ?? "var(--foreground)" }}>
+        {value}
+      </p>
+      <p className="mt-2 text-[11px] font-mono uppercase tracking-[0.16em]" style={{ color: "var(--foreground-muted)" }}>
+        {meta}
+      </p>
     </div>
   );
 }
 
-function SkeletonBlock({ lines = 3 }: { lines?: number }) {
+function MiniFlow({ rows }: { rows: any[] }) {
+  const values = rows.map((row) => n(row.totalNetInflow)).filter((value): value is number => value != null).reverse();
+  if (values.length < 2) return <div className="mt-4 h-10 border-t" style={{ borderColor: B }} />;
+  const maxAbs = Math.max(...values.map((value) => Math.abs(value)), 1);
   return (
-    <div className="flex flex-col gap-2 animate-pulse">
-      {Array.from({ length: lines }).map((_, i) => (
+    <div className="mt-4 flex h-14 items-end gap-1">
+      {values.map((value, index) => (
         <div
-          key={i}
-          className="h-3 rounded"
-          style={{ background: "var(--surface-2)", width: `${55 + (i % 3) * 15}%` }}
+          key={index}
+          className="flex-1"
+          style={{
+            height: `${Math.max(8, (Math.abs(value) / maxAbs) * 56)}px`,
+            background: value >= 0 ? GREEN : RED,
+            opacity: 0.35 + (Math.abs(value) / maxAbs) * 0.65,
+          }}
         />
       ))}
     </div>
   );
 }
 
-function fmtPercent(value: number) {
-  return `${value >= 0 ? "+" : ""}${value.toFixed(2)}%`;
-}
-
-function fmtTime(ts: number) {
-  return new Date(ts).toLocaleTimeString("en-US", {
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-  });
-}
-
-function fmtAxisTime(ts: number, window: (typeof NEWS_WINDOW_OPTIONS)[number]) {
-  return new Date(ts).toLocaleString("en-US", {
-    month: window === "24H" ? undefined : "short",
-    day: window === "24H" ? undefined : "numeric",
-    hour: "2-digit",
-    minute: window === "24H" ? "2-digit" : undefined,
-    hour12: false,
-  });
-}
-
-function dayKey(ts: number) {
-  return new Date(ts).toISOString().slice(0, 10);
-}
-
-function displayNewsTitle(item: NewsItem) {
-  if (item.title?.trim()) return item.title.trim();
-  const excerpt = item.content_excerpt?.trim() ?? "";
-  return excerpt.length > 90 ? `${excerpt.slice(0, 90)}...` : excerpt || "Market update";
-}
-
-function normalizeHotNewsItem(raw: Record<string, unknown>): NewsItem | null {
-  const releaseTime = Number(raw.release_time ?? 0);
-  if (!releaseTime) return null;
-
-  const title = typeof raw.title === "string" ? raw.title : "";
-  const content = typeof raw.content === "string" ? raw.content : "";
-  const sourceLink = typeof raw.source_link === "string" ? raw.source_link : null;
-  const originalLink = typeof raw.original_link === "string" ? raw.original_link : sourceLink;
-  const tags = Array.isArray(raw.tags) ? raw.tags.filter((tag): tag is string => typeof tag === "string") : [];
-  const matchedCurrencies = Array.isArray(raw.matched_currencies)
-    ? raw.matched_currencies.filter((item): item is Record<string, unknown> => !!item && typeof item === "object")
-    : [];
-
-  return {
-    id: String(raw.id ?? `${releaseTime}-${title || "hot-news"}`),
-    asset: "CRYPTO_MARKET",
-    title,
-    original_title: title,
-    timestamp_ms: releaseTime,
-    timestamp_iso: new Date(releaseTime).toISOString(),
-    bucket_open_ms_4h: Math.floor(releaseTime / (4 * 60 * 60 * 1000)) * (4 * 60 * 60 * 1000),
-    bucket_open_iso_4h: new Date(Math.floor(releaseTime / (4 * 60 * 60 * 1000)) * (4 * 60 * 60 * 1000)).toISOString(),
-    source_link: sourceLink,
-    original_link: originalLink,
-    category: typeof raw.category === "number" ? raw.category : Number(raw.category ?? 0),
-    category_label: "hot_news",
-    author: typeof raw.author === "string" ? raw.author : null,
-    nick_name: typeof raw.nick_name === "string" ? raw.nick_name : null,
-    tags,
-    matched_currencies: matchedCurrencies,
-    feature_image: typeof raw.feature_image === "string" ? raw.feature_image : null,
-    content_excerpt: content,
-    impression_count: Number(raw.impression_count ?? 0),
-    like_count: Number(raw.like_count ?? 0),
-    reply_count: Number(raw.reply_count ?? 0),
-    retweet_count: Number(raw.retweet_count ?? 0),
-    importance_score:
-      Number(raw.impression_count ?? 0) / 1000 +
-      Number(raw.like_count ?? 0) +
-      Number(raw.reply_count ?? 0) +
-      Number(raw.retweet_count ?? 0) +
-      (typeof raw.category === "number" ? raw.category : Number(raw.category ?? 0)),
-    is_major: true,
-  };
-}
-
-function getRelationshipKlineUrl(asset: string, interval: (typeof INTERVAL_OPTIONS)[number], limit: number) {
-  const config = KLINE_CONFIG[asset];
-  if (!config) return null;
-
-  const now = Date.now();
-  let url = `${config.base}&interval=${interval}&limit=${limit}&endTime=${now}`;
-  if (config.hasStartTime) {
-    const startTime = now - limit * INTERVAL_MS[interval];
-    url += `&startTime=${startTime}`;
-  }
-  return url;
-}
-
-export function RelationshipModule({ asset: activeAsset }: { asset: string }) {
-  const [selectedAssets, setSelectedAssets] = useState<string[]>([...TOP_FIVE]);
-  const [lookback, setLookback] = useState<(typeof LOOKBACK_OPTIONS)[number]>("24H");
-  const [klineInterval, setKlineInterval] = useState<(typeof INTERVAL_OPTIONS)[number]>("5m");
-  const [waveCategory, setWaveCategory] = useState<(typeof WAVE_CATEGORIES)[number]>("crypto");
-  const [newsWindow, setNewsWindow] = useState<(typeof NEWS_WINDOW_OPTIONS)[number]>("24H");
-  const [series, setSeries] = useState<SeriesData[]>([]);
-  const [loadingSeries, setLoadingSeries] = useState(true);
-  const [hotNews, setHotNews] = useState<NewsItem[]>([]);
-  const [loadingNews, setLoadingNews] = useState(true);
-  const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
-  const [hoveredNewsId, setHoveredNewsId] = useState<string | null>(null);
-  const [chartWidth, setChartWidth] = useState(0);
-  const [newsSeries, setNewsSeries] = useState<SeriesData[]>([]);
-  const [loadingNewsSeries, setLoadingNewsSeries] = useState(true);
-  const [newsChartWidth, setNewsChartWidth] = useState(0);
-  const containerRef = useRef<HTMLDivElement>(null);
-  const newsChartRef = useRef<HTMLDivElement>(null);
-  const selectedAssetsKey = useMemo(() => selectedAssets.join(","), [selectedAssets]);
-  const waveAssets = useMemo(() => WAVE_MARKETS[waveCategory], [waveCategory]);
-  const waveAssetsKey = useMemo(() => waveAssets.join(","), [waveAssets]);
-
-  useEffect(() => {
-    const el = containerRef.current;
-    if (!el) return;
-    const ro = new ResizeObserver(() => setChartWidth(el.clientWidth));
-    ro.observe(el);
-    setChartWidth(el.clientWidth);
-    return () => ro.disconnect();
-  }, []);
-
-  useEffect(() => {
-    const el = newsChartRef.current;
-    if (!el) return;
-    const ro = new ResizeObserver(() => setNewsChartWidth(el.clientWidth));
-    ro.observe(el);
-    setNewsChartWidth(el.clientWidth);
-    return () => ro.disconnect();
-  }, []);
-
-  useEffect(() => {
-    let ignore = false;
-    setLoadingSeries(true);
-
-    const fetchSeries = async () => {
-      const limit = Math.max(24, Math.min(1500, Math.ceil(LOOKBACK_MS[lookback] / INTERVAL_MS[klineInterval])));
-      const assetsToFetch = selectedAssetsKey.split(",").filter(Boolean);
-      const requests = assetsToFetch.map(async (asset) => {
-        const url = getRelationshipKlineUrl(asset, klineInterval, limit);
-        if (!url) return null;
-
-        try {
-          const res = await fetch(url, { cache: "no-store" });
-          const json = await res.json();
-          if (json.code !== 0 || !Array.isArray(json.data) || json.data.length === 0) {
-            return null;
-          }
-
-          const sorted = [...json.data].sort((a: any, b: any) => a.t - b.t);
-          const firstClose = parseFloat(sorted[0].c);
-          const candles = sorted.map((k: any) => ({
-            time: Number(k.t),
-            value: ((parseFloat(k.c) - firstClose) / firstClose) * 100,
-          }));
-
-          return {
-            asset,
-            candles,
-            color: COLORS[asset] ?? "var(--accent)",
-          } satisfies SeriesData;
-        } catch {
-          return null;
-        }
-      });
-
-      const results = await Promise.all(requests);
-      if (ignore) return;
-      setSeries(results.filter((item): item is SeriesData => item !== null));
-      setLoadingSeries(false);
-    };
-
-    fetchSeries();
-    const intervalId = window.setInterval(fetchSeries, 60_000);
-    return () => {
-      ignore = true;
-      window.clearInterval(intervalId);
-    };
-  }, [selectedAssetsKey, lookback, klineInterval]);
-
-  useEffect(() => {
-    let ignore = false;
-    setLoadingNews(true);
-
-    const fetchNews = async () => {
-      try {
-        const endTime = Date.now();
-        const startTime = endTime - 7 * 24 * 60 * 60 * 1000 + 60_000;
-        const res = await fetch(
-          `https://api.sosovalue.xyz/openapi/v1/news/hot?start_time=${startTime}&end_time=${endTime}&pageNum=1&pageSize=100`,
-          { cache: "no-store" }
-        );
-        const json = await res.json();
-        if (!res.ok) {
-          throw new Error(json?.error || "Failed to fetch hot news");
-        }
-        if (json?.code !== 0) {
-          throw new Error(json?.message || "Hot news request was rejected");
-        }
-        if (ignore) return;
-        const list = Array.isArray(json?.data?.list) ? json.data.list : [];
-        const normalized = list
-          .map((item: Record<string, unknown>) => normalizeHotNewsItem(item))
-          .filter((item: NewsItem | null): item is NewsItem => item !== null)
-          .sort((a, b) => b.timestamp_ms - a.timestamp_ms);
-        setHotNews(normalized);
-      } catch (error) {
-        if (!ignore) {
-          console.error("[relationship] hot news fetch error:", error);
-          setHotNews([]);
-        }
-      } finally {
-        if (!ignore) {
-          setLoadingNews(false);
-        }
-      }
-    };
-
-    fetchNews();
-    const intervalId = setInterval(fetchNews, 60_000);
-    return () => {
-      ignore = true;
-      clearInterval(intervalId);
-    };
-  }, []);
-
-  useEffect(() => {
-    let ignore = false;
-    setLoadingNewsSeries(true);
-
-    const fetchNewsSeries = async () => {
-      const interval = NEWS_WINDOW_INTERVAL[newsWindow];
-      const limit = Math.max(24, Math.min(500, Math.ceil(NEWS_WINDOW_MS[newsWindow] / INTERVAL_MS[interval])));
-      const requests = waveAssets.map(async (asset) => {
-        const url = getRelationshipKlineUrl(asset, interval, limit);
-        if (!url) return null;
-        try {
-          const res = await fetch(url, { cache: "no-store" });
-          const json = await res.json();
-          if (json.code !== 0 || !Array.isArray(json.data) || json.data.length === 0) {
-            return null;
-          }
-          const sorted = [...json.data].sort((a: any, b: any) => a.t - b.t);
-          const firstClose = parseFloat(sorted[0].c);
-          const candles = sorted.map((k: any) => ({
-            time: Number(k.t),
-            value: ((parseFloat(k.c) - firstClose) / firstClose) * 100,
-          }));
-
-          return {
-            asset,
-            candles,
-            color: COLORS[asset] ?? "var(--accent)",
-          } satisfies SeriesData;
-        } catch {
-          return null;
-        }
-      });
-
-      const results = await Promise.all(requests);
-      if (ignore) return;
-      setNewsSeries(results.filter((item): item is SeriesData => item !== null));
-      setLoadingNewsSeries(false);
-    };
-
-    fetchNewsSeries();
-    const intervalId = window.setInterval(fetchNewsSeries, 60_000);
-    return () => {
-      ignore = true;
-      window.clearInterval(intervalId);
-    };
-  }, [waveAssetsKey, newsWindow]);
-
-  const metrics = useMemo(() => {
-    if (!series.length) return null;
-
-    const latest = series
-      .map((item) => ({
-        asset: item.asset,
-        value: item.candles[item.candles.length - 1]?.value ?? 0,
-        color: item.color,
-      }))
-      .sort((a, b) => b.value - a.value);
-
-    const leader = latest[0];
-    const laggard = latest[latest.length - 1];
-    const anchor = latest.find((item) => item.asset === activeAsset) ?? leader;
-    const alignedCount = latest.filter((item) => (anchor.value >= 0 ? item.value >= 0 : item.value < 0)).length;
-    const majorityPositive = latest.filter((item) => item.value >= 0).length;
-    const majorityDirection = majorityPositive >= Math.ceil(latest.length / 2) ? "bullish" : "bearish";
-    const diverging =
-      (anchor.value >= 0 && majorityDirection === "bearish") ||
-      (anchor.value < 0 && majorityDirection === "bullish");
-
-    let summary = `${leader.asset} is leading while ${laggard.asset} is trailing.`;
-    if (diverging) {
-      summary = `${activeAsset} is diverging from the broader basket.`;
-    } else if (alignedCount >= 4) {
-      summary = `${alignedCount} of ${latest.length} majors are aligned with ${activeAsset}.`;
-    } else if (alignedCount <= 2) {
-      summary = `${activeAsset} is seeing weak confirmation from the top-pair basket.`;
-    }
-
-    return {
-      latest,
-      leader,
-      laggard,
-      anchor,
-      alignedCount,
-      summary,
-    };
-  }, [series, activeAsset]);
-
-  const chartMeta = useMemo(() => {
-    const allValues = series.flatMap((item) => item.candles.map((candle) => candle.value));
-    const minVal = allValues.length ? Math.min(...allValues) : -1;
-    const maxVal = allValues.length ? Math.max(...allValues) : 1;
-    const range = maxVal - minVal || 1;
-    const pad = range * 0.08;
-    const yMin = minVal - pad;
-    const yMax = maxVal + pad;
-    const maxLen = series.reduce((memo, item) => Math.max(memo, item.candles.length), 0);
-    const drawW = Math.max(0, chartWidth - PAD_LEFT - PAD_RIGHT);
-    const drawH = CHART_H - PAD_TOP - PAD_BOT;
-
-    return {
-      yMin,
-      yMax,
-      maxLen,
-      drawW,
-      drawH,
-      toX: (idx: number, total: number) => PAD_LEFT + (idx / (total - 1 || 1)) * drawW,
-      toY: (value: number) => PAD_TOP + drawH - ((value - yMin) / (yMax - yMin)) * drawH,
-      yTicks: Array.from({ length: 4 }, (_, i) => yMin + (yMax - yMin) * (i / 3)),
-    };
-  }, [series, chartWidth]);
-
-  const groupedNews = useMemo(() => {
-    const items = hotNews;
-    const grouped = new Map<number, NewsItem[]>();
-    const bucketSize = INTERVAL_MS[NEWS_WINDOW_INTERVAL[newsWindow]];
-
-    for (const item of items) {
-      const bucket = Math.floor(item.timestamp_ms / bucketSize) * bucketSize;
-      const existing = grouped.get(bucket) ?? [];
-      existing.push(item);
-      grouped.set(bucket, existing);
-    }
-
-    return Array.from(grouped.entries())
-      .sort((a, b) => a[0] - b[0])
-      .map(([bucket, items]) => ({
-        bucket,
-        itemCount: items.length,
-        topTitle: displayNewsTitle(items[0]),
-        items: [...items].sort((a, b) => b.importance_score - a.importance_score),
-      }));
-  }, [hotNews, newsWindow]);
-
-  const majorHeadlines = useMemo(() => {
-    if (!hotNews.length) return [];
-
-    const byDay = new Map<string, NewsItem[]>();
-    for (const item of hotNews) {
-      const key = dayKey(item.timestamp_ms);
-      const existing = byDay.get(key) ?? [];
-      existing.push(item);
-      byDay.set(key, existing);
-    }
-
-    const orderedDays = Array.from(byDay.keys()).sort((a, b) => b.localeCompare(a));
-    const diversified: NewsItem[] = [];
-    const maxPerDay = 3;
-    let round = 0;
-
-    while (diversified.length < 10) {
-      let addedInRound = false;
-      for (const key of orderedDays) {
-        const dayItems = byDay.get(key) ?? [];
-        if (round < Math.min(maxPerDay, dayItems.length)) {
-          diversified.push(dayItems[round]);
-          addedInRound = true;
-          if (diversified.length >= 10) break;
-        }
-      }
-      if (!addedInRound) break;
-      round += 1;
-    }
-
-    return diversified;
-  }, [hotNews]);
-
-  const newsChartMeta = useMemo(() => {
-    const allValues = newsSeries.flatMap((item) => item.candles.map((candle) => candle.value));
-    const minVal = allValues.length ? Math.min(...allValues) : -1;
-    const maxVal = allValues.length ? Math.max(...allValues) : 1;
-    const range = maxVal - minVal || 1;
-    const pad = range * 0.12;
-    const yMin = minVal - pad;
-    const yMax = maxVal + pad;
-    const maxLen = newsSeries.reduce((memo, item) => Math.max(memo, item.candles.length), 0);
-    const drawW = Math.max(0, newsChartWidth - PAD_LEFT - PAD_RIGHT);
-    const drawH = NEWS_CHART_H - PAD_TOP - PAD_BOT;
-
-    return {
-      yMin,
-      yMax,
-      maxLen,
-      drawW,
-      drawH,
-      toX: (idx: number, total: number) => PAD_LEFT + (idx / (total - 1 || 1)) * drawW,
-      toY: (value: number) => PAD_TOP + drawH - ((value - yMin) / (yMax - yMin)) * drawH,
-      yTicks: Array.from({ length: 4 }, (_, i) => yMin + (yMax - yMin) * (i / 3)),
-    };
-  }, [newsSeries, newsChartWidth]);
-
-  const visibleNewsMarkers = useMemo(() => {
-    if (!newsSeries.length || !hotNews.length) return [];
-    const anchor = newsSeries[0];
-    const bucketSize = INTERVAL_MS[NEWS_WINDOW_INTERVAL[newsWindow]];
-    const first = anchor.candles[0];
-    const last = anchor.candles[anchor.candles.length - 1];
-    if (!first || !last) return [];
-
-    return groupedNews
-      .filter((group) => group.bucket >= first.time && group.bucket <= last.time)
-      .map((group) => {
-        const ratio = (group.bucket - first.time) / Math.max(1, last.time - first.time);
-        return {
-          ...group,
-          x: PAD_LEFT + ratio * newsChartMeta.drawW,
-          laneY: PAD_TOP + 22 + ((group.bucket / bucketSize) % 4) * 12,
-        };
-      });
-  }, [groupedNews, hotNews, newsSeries, newsChartMeta.drawW, newsWindow]);
-
-  const hoveredNewsItem = useMemo(() => {
-    if (!hoveredNewsId) return null;
-    return hotNews.find((item) => item.id === hoveredNewsId) ?? null;
-  }, [hoveredNewsId, hotNews]);
-
-  const activeNewsMarker = useMemo(() => {
-    if (!hoveredNewsId) return visibleNewsMarkers[0] ?? null;
-    return (
-      visibleNewsMarkers.find((marker) => marker.items.some((item) => item.id === hoveredNewsId)) ??
-      visibleNewsMarkers[0] ??
-      null
-    );
-  }, [hoveredNewsId, visibleNewsMarkers]);
-
-  const newsAxisTicks = useMemo(() => {
-    const anchor = newsSeries[0];
-    if (!anchor || anchor.candles.length === 0) return [];
-    const total = anchor.candles.length;
-    const tickCount = newsWindow === "24H" ? 6 : 5;
-    return Array.from({ length: tickCount }, (_, i) => {
-      const idx = Math.min(total - 1, Math.round((i / Math.max(1, tickCount - 1)) * (total - 1)));
-      return anchor.candles[idx];
-    });
-  }, [newsSeries, newsWindow]);
-
-  function onMouseMove(e: React.MouseEvent<SVGSVGElement>) {
-    if (!chartMeta.maxLen || !chartWidth) return;
-    const rect = e.currentTarget.getBoundingClientRect();
-    const mx = e.clientX - rect.left - PAD_LEFT;
-    const idx = Math.round((mx / chartMeta.drawW) * (chartMeta.maxLen - 1));
-    const clamped = Math.max(0, Math.min(chartMeta.maxLen - 1, idx));
-    setHoveredIdx(clamped);
-  }
+function AnalysisToolsDeck({ payload }: { payload?: any }) {
+  const macroEvents = payload?.macroShock?.events ?? [];
+  const flowAssets = payload?.flowLens?.assets ?? [];
+  const indices = payload?.sectorRotation?.indices ?? [];
+  const unlocks = payload?.unlockSupply?.assets ?? [];
+  const bridge = payload?.cryptoStocksBridge ?? {};
+  const leadMacro = macroEvents[0];
+  const leadFlow = flowAssets.find((row: any) => n(row.dailyNetInflow) != null) ?? flowAssets[0];
+  const leadIndex = [...indices].sort((a: any, b: any) => Math.abs(n(b.changePct24h) ?? 0) - Math.abs(n(a.changePct24h) ?? 0))[0];
+  const leadUnlock = unlocks.find((row: any) => (row.topAllocations ?? []).length) ?? unlocks[0];
+  const leadStock = (bridge.stocks ?? [])[0];
 
   return (
-    <div className="min-h-screen">
-      <div className="border-b" style={{ borderColor: B }}>
-        <SectionLabel eyebrow="Market Relationships" title="Custom Basket" meta={`${lookback} · ${klineInterval} · Perps`} />
+    <div className="border-b" style={{ borderColor: B }}>
+      <div className="border-b px-5 py-4 sm:px-7" style={{ borderColor: B }}>
+        <p className="text-[12px] font-mono uppercase tracking-[0.28em] font-bold" style={{ color: "var(--foreground-dim)" }}>
+          Analysis Tools
+        </p>
+        <p className="mt-2 text-[11px] font-mono uppercase tracking-[0.18em]" style={{ color: "var(--foreground-faint)" }}>
+          SoSoValue API payloads converted into trader lenses
+        </p>
+      </div>
 
-        <div className="border-b px-6 py-4 flex flex-col gap-4" style={{ borderColor: B, background: "var(--surface)" }}>
-          <div className="flex flex-wrap items-center gap-3">
-            <span className="text-[11px] font-mono uppercase tracking-[0.16em] font-bold" style={{ color: "var(--foreground-dim)" }}>
-              Compare Window
-            </span>
-            <div className="flex flex-wrap gap-1">
-              {LOOKBACK_OPTIONS.map((option) => (
-                <button
-                  key={option}
-                  type="button"
-                  onClick={() => setLookback(option)}
-                  className="px-2.5 py-1 text-[11px] font-mono border rounded transition-colors"
-                  style={{
-                    borderColor: lookback === option ? "var(--accent)" : B,
-                    background: lookback === option ? "var(--accent-track)" : "transparent",
-                    color: lookback === option ? "var(--accent)" : "var(--foreground-dim)",
-                  }}
-                >
-                  {option}
-                </button>
-              ))}
+      <div className="grid grid-cols-1 lg:grid-cols-5" style={{ background: B }}>
+        <div className="min-h-[260px] p-5" style={{ background: "var(--bg)" }}>
+          <p className="text-[10px] font-mono uppercase tracking-[0.24em]" style={{ color: "var(--foreground-faint)" }}>Macro Shock</p>
+          <h3 className="mt-4 text-xl font-mono font-bold leading-tight">{leadMacro?.event ?? "Waiting for macro"}</h3>
+          <p className="mt-2 text-[12px] font-mono uppercase tracking-[0.16em]" style={{ color: "var(--foreground-muted)" }}>{dateLabel(leadMacro?.date)}</p>
+          <div className="mt-6 grid grid-cols-3 gap-px border" style={{ borderColor: B, background: B }}>
+            {["actual", "forecast", "previous"].map((field) => (
+              <div key={field} className="p-3" style={{ background: "var(--surface)" }}>
+                <p className="text-[9px] font-mono uppercase tracking-[0.18em]" style={{ color: "var(--foreground-faint)" }}>{field}</p>
+                <p className="mt-2 truncate text-[13px] font-mono font-bold">{leadMacro?.[field] ?? "--"}</p>
+              </div>
+            ))}
+          </div>
+          <p className="mt-5 text-[12px] font-mono font-bold" style={{ color: colorFor(n(leadMacro?.surprise) ?? 0) }}>
+            Surprise {fmtRatio(leadMacro?.surprise)}
+          </p>
+        </div>
+
+        <div className="min-h-[260px] p-5" style={{ background: "var(--bg)" }}>
+          <p className="text-[10px] font-mono uppercase tracking-[0.24em]" style={{ color: "var(--foreground-faint)" }}>Flow Lens</p>
+          <h3 className="mt-4 text-3xl font-mono font-bold">{leadFlow?.asset ?? "--"}</h3>
+          <p className="mt-2 text-[24px] font-mono font-bold tabular-nums" style={{ color: colorFor(n(leadFlow?.dailyNetInflow) ?? 0) }}>
+            {money(leadFlow?.dailyNetInflow)}
+          </p>
+          <p className="mt-2 text-[11px] font-mono uppercase tracking-[0.16em]" style={{ color: "var(--foreground-muted)" }}>
+            ETF net flow / assets {money(leadFlow?.totalNetAssets)}
+          </p>
+          <MiniFlow rows={leadFlow?.history ?? []} />
+        </div>
+
+        <div className="min-h-[260px] p-5" style={{ background: "var(--bg)" }}>
+          <p className="text-[10px] font-mono uppercase tracking-[0.24em]" style={{ color: "var(--foreground-faint)" }}>Sector Rotation</p>
+          <h3 className="mt-4 text-2xl font-mono font-bold">{leadIndex?.ticker ?? "--"}</h3>
+          <p className="mt-2 text-[24px] font-mono font-bold tabular-nums" style={{ color: colorFor(n(leadIndex?.changePct24h) ?? 0) }}>
+            {fmtRatio(leadIndex?.changePct24h)}
+          </p>
+          <div className="mt-5 space-y-2">
+            {indices.slice(0, 4).map((row: any) => (
+              <div key={row.ticker} className="flex items-center justify-between gap-3 border-t pt-2" style={{ borderColor: B }}>
+                <span className="text-[11px] font-mono font-bold">{row.ticker}</span>
+                <span className="text-[11px] font-mono font-bold" style={{ color: colorFor(n(row.changePct24h) ?? 0) }}>{fmtRatio(row.changePct24h)}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="min-h-[260px] p-5" style={{ background: "var(--bg)" }}>
+          <p className="text-[10px] font-mono uppercase tracking-[0.24em]" style={{ color: "var(--foreground-faint)" }}>Unlock / Supply</p>
+          <h3 className="mt-4 text-3xl font-mono font-bold">{leadUnlock?.asset ?? "--"}</h3>
+          <p className="mt-2 text-[12px] font-mono uppercase tracking-[0.16em]" style={{ color: "var(--foreground-muted)" }}>
+            Top allocation pressure
+          </p>
+          <div className="mt-5 space-y-3">
+            {(leadUnlock?.topAllocations ?? []).slice(0, 4).map((row: any) => (
+              <div key={row.holder}>
+                <div className="mb-1 flex items-center justify-between gap-3">
+                  <span className="truncate text-[11px] font-mono">{row.holder}</span>
+                  <span className="text-[11px] font-mono font-bold">{compact(row.percentage)}%</span>
+                </div>
+                <div className="h-1 bg-white/10">
+                  <div className="h-full" style={{ width: `${Math.min(100, n(row.percentage) ?? 0)}%`, background: "var(--foreground)" }} />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="min-h-[260px] p-5" style={{ background: "var(--bg)" }}>
+          <p className="text-[10px] font-mono uppercase tracking-[0.24em]" style={{ color: "var(--foreground-faint)" }}>Crypto Stocks Bridge</p>
+          <h3 className="mt-4 text-2xl font-mono font-bold">{leadStock?.ticker ?? "--"}</h3>
+          <p className="mt-2 truncate text-sm font-semibold" style={{ color: "var(--foreground-muted)" }}>{leadStock?.name ?? "TradFi proxy watch"}</p>
+          <div className="mt-5 grid grid-cols-2 gap-px border" style={{ borderColor: B, background: B }}>
+            <div className="p-3" style={{ background: "var(--surface)" }}>
+              <p className="text-[9px] font-mono uppercase tracking-[0.18em]" style={{ color: "var(--foreground-faint)" }}>Turnover</p>
+              <p className="mt-2 text-[13px] font-mono font-bold">{money(leadStock?.turnover)}</p>
+            </div>
+            <div className="p-3" style={{ background: "var(--surface)" }}>
+              <p className="text-[9px] font-mono uppercase tracking-[0.18em]" style={{ color: "var(--foreground-faint)" }}>Treasuries</p>
+              <p className="mt-2 text-[13px] font-mono font-bold">{compact((bridge.btcTreasuries ?? []).length)}</p>
             </div>
           </div>
-
-          <div className="flex flex-wrap items-center gap-3">
-            <span className="text-[11px] font-mono uppercase tracking-[0.16em] font-bold" style={{ color: "var(--foreground-dim)" }}>
-              Kline Resolution
-            </span>
-            <div className="flex flex-wrap gap-1">
-              {INTERVAL_OPTIONS.map((option) => (
-                <button
-                  key={option}
-                  type="button"
-                  onClick={() => setKlineInterval(option)}
-                  className="px-2.5 py-1 text-[11px] font-mono border rounded transition-colors"
-                  style={{
-                    borderColor: klineInterval === option ? "var(--accent)" : B,
-                    background: klineInterval === option ? "var(--accent-track)" : "transparent",
-                    color: klineInterval === option ? "var(--accent)" : "var(--foreground-dim)",
-                  }}
-                >
-                  {option}
-                </button>
-              ))}
-            </div>
+          <div className="mt-4 space-y-2">
+            {(bridge.btcTreasuries ?? []).slice(0, 3).map((row: any) => (
+              <div key={row.ticker} className="flex items-center justify-between gap-3 border-t pt-2" style={{ borderColor: B }}>
+                <span className="text-[11px] font-mono font-bold">{row.ticker}</span>
+                <span className="text-[11px] font-mono">{compact(row.btcHolding)} BTC</span>
+              </div>
+            ))}
           </div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
-          <div className="flex flex-wrap items-center gap-3">
-            <span className="text-[11px] font-mono uppercase tracking-[0.16em] font-bold" style={{ color: "var(--foreground-dim)" }}>
-              Pair Selector
-            </span>
-            <div className="flex flex-wrap gap-1.5">
-              {Object.keys(relationshipData.assets).filter((asset) => ["BTC", "ETH", "SOL", "XRP", "BNB", "ADA", "DOGE", "AVAX", "LINK", "HBAR", "SUI"].includes(asset)).map((asset) => {
-                const active = selectedAssets.includes(asset);
-                const disableRemoval = active && selectedAssets.length <= 2;
-                return (
+function EventImpactMap({
+  baseAsset,
+  baseSeries,
+}: {
+  baseAsset: string;
+  baseSeries?: SeriesData;
+}) {
+  const [eventWindow, setEventWindow] = useState<Lookback>("7D");
+  const [eventSeries, setEventSeries] = useState<SeriesData | null>(null);
+  const [items, setItems] = useState<NewsEvent[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [loadingSeries, setLoadingSeries] = useState(true);
+  const [activeId, setActiveId] = useState<string | null>(null);
+  const [width, setWidth] = useState(900);
+  const ref = useRef<HTMLDivElement | null>(null);
+  const height = 340;
+  const days = eventWindow === "7D" ? 7 : eventWindow === "3D" ? 3 : 1;
+
+  useEffect(() => {
+    const node = ref.current;
+    if (!node) return;
+    const observer = new ResizeObserver(([entry]) => setWidth(Math.max(320, entry.contentRect.width)));
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoadingSeries(true);
+    fetchSeries(baseAsset, eventWindow)
+      .then((next) => {
+        if (!cancelled) setEventSeries(next);
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingSeries(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [baseAsset, eventWindow]);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+
+    async function loadNews() {
+      const news: NewsEvent[] = [];
+      try {
+        const hot = await fetch(`/api/hot-news?days=${days}&page_size=80`, { cache: "no-store" });
+        if (hot.ok) news.push(...normalizeNewsPayload(await hot.json()));
+      } catch {
+        // The terminal payload below is the offline fallback.
+      }
+
+      if (!news.length) {
+        try {
+          const terminal = await fetch("/api/terminal-data", { cache: "no-store" });
+          if (terminal.ok) {
+            const payload = await terminal.json();
+            news.push(...normalizeNewsPayload(payload?.news?.hot));
+          }
+        } catch {
+          // Keep the chart alive even if news is unavailable.
+        }
+      }
+
+      if (!cancelled) {
+        setItems(news);
+        setActiveId(news[0]?.id ?? null);
+        setLoading(false);
+      }
+    }
+
+    loadNews();
+    return () => {
+      cancelled = true;
+    };
+  }, [days]);
+
+  const displaySeries = eventSeries ?? baseSeries;
+
+  const chart = useMemo(() => {
+    const points = displaySeries?.normalized ?? [];
+    if (points.length < 2) return null;
+    const min = Math.min(...points.map((point) => point.close));
+    const max = Math.max(...points.map((point) => point.close));
+    const pad = Math.max(0.4, (max - min) * 0.12);
+    const yMin = min - pad;
+    const yMax = max + pad;
+    const innerW = width - PAD.left - PAD.right;
+    const innerH = height - PAD.top - PAD.bottom;
+    const range = yMax - yMin || 1;
+    const toX = (index: number) => PAD.left + (index / Math.max(1, points.length - 1)) * innerW;
+    const toY = (value: number) => PAD.top + (1 - (value - yMin) / range) * innerH;
+    const line = points.map((point, index) => `${index === 0 ? "M" : "L"} ${toX(index).toFixed(2)} ${toY(point.close).toFixed(2)}`).join(" ");
+    const area = `${line} L ${PAD.left + innerW} ${height - PAD.bottom} L ${PAD.left} ${height - PAD.bottom} Z`;
+    return { points, line, area, toX, toY, yMin, yMax };
+  }, [displaySeries, width]);
+
+  const markers = useMemo(() => {
+    if (!chart) return [];
+    const start = chart.points[0].time;
+    const end = chart.points[chart.points.length - 1].time;
+    return items
+      .filter((item) => item.timestamp >= start && item.timestamp <= end)
+      .slice(0, 18)
+      .map((item) => {
+        let closestIndex = 0;
+        let closestDistance = Infinity;
+        chart.points.forEach((point, index) => {
+          const distance = Math.abs(point.time - item.timestamp);
+          if (distance < closestDistance) {
+            closestDistance = distance;
+            closestIndex = index;
+          }
+        });
+        const point = chart.points[closestIndex];
+        return {
+          item,
+          x: chart.toX(closestIndex),
+          y: chart.toY(point.close),
+          move: point.close,
+        };
+      });
+  }, [chart, items]);
+
+  const active = markers.find((marker) => marker.item.id === activeId) ?? markers[0] ?? null;
+
+  return (
+    <div className="border-t" style={{ borderColor: B }}>
+      <div className="grid grid-cols-1 xl:grid-cols-[1fr_360px]" style={{ background: B }}>
+        <div ref={ref} style={{ background: "var(--bg)" }}>
+          <div className="flex flex-col gap-2 border-b px-5 py-4 sm:px-7" style={{ borderColor: B }}>
+            <p className="text-[12px] font-mono uppercase tracking-[0.28em] font-bold" style={{ color: "var(--foreground-dim)" }}>
+              Event Impact Map
+            </p>
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+              <p className="text-[11px] font-mono uppercase tracking-[0.18em]" style={{ color: "var(--foreground-faint)" }}>
+                SoSoValue headlines pinned to the {baseAsset} movement path / default 7D
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {LOOKBACKS.map((item) => (
                   <button
-                    key={asset}
+                    key={item}
                     type="button"
-                    disabled={disableRemoval}
-                    onClick={() => {
-                      setSelectedAssets((current) => {
-                        if (current.includes(asset)) {
-                          if (current.length <= 2) return current;
-                          return current.filter((item) => item !== asset);
-                        }
-                        return [...current, asset];
-                      });
-                    }}
-                    className="px-2.5 py-1 text-[11px] font-mono border rounded transition-colors disabled:opacity-40"
+                    onClick={() => setEventWindow(item)}
+                    className="border px-3 py-2 text-[10px] font-mono font-bold uppercase tracking-[0.18em]"
                     style={{
-                      borderColor: active ? (COLORS[asset] ?? "var(--accent)") : B,
-                      background: active ? "var(--surface-2)" : "transparent",
-                      color: active ? (COLORS[asset] ?? "var(--foreground)") : "var(--foreground-dim)",
+                      borderColor: eventWindow === item ? BLUE : B,
+                      color: eventWindow === item ? BLUE : "var(--foreground-muted)",
+                      background: eventWindow === item ? "var(--accent-track)" : "transparent",
                     }}
                   >
-                    {asset}
+                    {item}
                   </button>
-                );
-              })}
+                ))}
+              </div>
             </div>
+          </div>
+
+          <div className="relative px-3 py-5 sm:px-6">
+            {loading || loadingSeries ? (
+              <div className="flex h-[340px] items-center justify-center">
+                <p className="text-[11px] font-mono uppercase tracking-[0.28em]" style={{ color: "var(--foreground-faint)" }}>
+                  Loading {eventWindow} event tape
+                </p>
+              </div>
+            ) : !chart ? (
+              <div className="flex h-[340px] items-center justify-center">
+                <p className="text-[11px] font-mono uppercase tracking-[0.28em]" style={{ color: "var(--foreground-faint)" }}>
+                  Waiting for {baseAsset} movement data
+                </p>
+              </div>
+            ) : (
+              <svg width="100%" height={height} viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none">
+                <defs>
+                  <linearGradient id="event-impact-fill" x1="0" x2="0" y1="0" y2="1">
+                    <stop offset="0%" stopColor="rgb(255,255,255)" stopOpacity="0.1" />
+                    <stop offset="100%" stopColor="rgb(255,255,255)" stopOpacity="0" />
+                  </linearGradient>
+                </defs>
+                {[0.25, 0.5, 0.75].map((ratio) => (
+                  <line
+                    key={ratio}
+                    x1={PAD.left}
+                    x2={width - PAD.right}
+                    y1={PAD.top + ratio * (height - PAD.top - PAD.bottom)}
+                    y2={PAD.top + ratio * (height - PAD.top - PAD.bottom)}
+                    stroke={GRID}
+                  />
+                ))}
+                <path d={chart.area} fill="url(#event-impact-fill)" />
+                <path d={chart.line} fill="none" stroke="var(--foreground)" strokeWidth={1.5} vectorEffect="non-scaling-stroke" />
+
+                {markers.map((marker, index) => {
+                  const isActive = active?.item.id === marker.item.id;
+                  const tone = marker.move >= 0 ? GREEN : RED;
+                  return (
+                    <g
+                      key={`${marker.item.id}-${index}`}
+                      onMouseEnter={() => setActiveId(marker.item.id)}
+                      style={{ cursor: "pointer" }}
+                    >
+                      <line
+                        x1={marker.x}
+                        x2={marker.x}
+                        y1={PAD.top}
+                        y2={height - PAD.bottom}
+                        stroke={isActive ? "rgba(255,255,255,0.28)" : "rgba(255,255,255,0.1)"}
+                        strokeDasharray="4 6"
+                      />
+                      <circle
+                        cx={marker.x}
+                        cy={marker.y}
+                        r={isActive ? 6 : 4}
+                        fill={tone}
+                        stroke="#000"
+                        strokeWidth={1.5}
+                      />
+                    </g>
+                  );
+                })}
+
+                <text x={PAD.left} y={20} fill="rgba(255,255,255,0.42)" fontSize={10} fontFamily="var(--font-mono)">
+                  {fmtPct(chart.yMax)}
+                </text>
+                <text x={PAD.left} y={height - 10} fill="rgba(255,255,255,0.42)" fontSize={10} fontFamily="var(--font-mono)">
+                  {fmtPct(chart.yMin)}
+                </text>
+              </svg>
+            )}
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-4 border-b" style={{ borderColor: B }}>
-          <div className="px-6 py-5 border-b md:border-b-0 md:border-r" style={{ borderColor: B }}>
-            <p className="text-[11px] font-mono uppercase tracking-[0.16em] mb-3 font-bold" style={{ color: "var(--foreground-dim)" }}>
-              Leader
-            </p>
-            {!metrics ? <SkeletonBlock lines={2} /> : (
-              <>
-                <p className="text-[18px] font-mono font-bold" style={{ color: metrics.leader.color }}>{metrics.leader.asset}</p>
-                <p className="text-[12px] font-mono mt-1" style={{ color: "var(--foreground-muted)" }}>{fmtPercent(metrics.leader.value)}</p>
-              </>
-            )}
-          </div>
-          <div className="px-6 py-5 border-b md:border-b-0 md:border-r" style={{ borderColor: B }}>
-            <p className="text-[11px] font-mono uppercase tracking-[0.16em] mb-3 font-bold" style={{ color: "var(--foreground-dim)" }}>
-              Laggard
-            </p>
-            {!metrics ? <SkeletonBlock lines={2} /> : (
-              <>
-                <p className="text-[18px] font-mono font-bold" style={{ color: metrics.laggard.color }}>{metrics.laggard.asset}</p>
-                <p className="text-[12px] font-mono mt-1" style={{ color: "var(--foreground-muted)" }}>{fmtPercent(metrics.laggard.value)}</p>
-              </>
-            )}
-          </div>
-          <div className="px-6 py-5 border-b md:border-b-0 md:border-r" style={{ borderColor: B }}>
-            <p className="text-[11px] font-mono uppercase tracking-[0.16em] mb-3 font-bold" style={{ color: "var(--foreground-dim)" }}>
-              Alignment
-            </p>
-            {!metrics ? <SkeletonBlock lines={2} /> : (
-              <>
-                <p className="text-[18px] font-mono font-bold" style={{ color: "var(--foreground)" }}>
-                  {metrics.alignedCount} / {metrics.latest.length}
-                </p>
-                <p className="text-[12px] font-mono mt-1" style={{ color: "var(--foreground-muted)" }}>
-                  moving with {activeAsset}
-                </p>
-              </>
-            )}
-          </div>
-          <div className="px-6 py-5">
-            <p className="text-[11px] font-mono uppercase tracking-[0.16em] mb-3 font-bold" style={{ color: "var(--foreground-dim)" }}>
-              Relationship Read
-            </p>
-            {!metrics ? <SkeletonBlock lines={3} /> : (
-              <p className="text-[12px] font-mono leading-relaxed" style={{ color: "var(--foreground-muted)" }}>
-                {metrics.summary}
+        <aside className="border-t px-5 py-5 xl:border-l xl:border-t-0" style={{ background: "var(--surface)", borderColor: B }}>
+          <p className="text-[10px] font-mono uppercase tracking-[0.26em]" style={{ color: "var(--foreground-faint)" }}>
+            Active Event
+          </p>
+          {active ? (
+            <>
+              <p className="mt-3 text-[12px] font-mono uppercase tracking-[0.18em]" style={{ color: "var(--foreground-dim)" }}>
+                {new Date(active.item.timestamp).toLocaleString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", hour12: false })} / {active.item.source}
               </p>
-            )}
+              <h3 className="mt-5 text-xl font-bold leading-tight">{active.item.title}</h3>
+              {active.item.content && (
+                <p className="mt-4 text-sm leading-relaxed" style={{ color: "var(--foreground-muted)" }}>
+                  {active.item.content}
+                </p>
+              )}
+              <p className="mt-5 text-[12px] font-mono font-bold tabular-nums" style={{ color: colorFor(active.move) }}>
+                {baseAsset} path at event: {fmtPct(active.move)}
+              </p>
+            </>
+          ) : (
+            <p className="mt-5 text-sm" style={{ color: "var(--foreground-muted)" }}>
+              No headline in the selected movement window yet.
+            </p>
+          )}
+
+          <div className="mt-6 max-h-[260px] space-y-2 overflow-y-auto pr-1">
+            {markers.map((marker) => (
+              <button
+                key={marker.item.id}
+                type="button"
+                onClick={() => setActiveId(marker.item.id)}
+                className="w-full border px-3 py-3 text-left transition-colors"
+                style={{
+                  borderColor: active?.item.id === marker.item.id ? BLUE : B,
+                  background: active?.item.id === marker.item.id ? "var(--accent-track)" : "transparent",
+                }}
+              >
+                <p className="text-[10px] font-mono uppercase tracking-[0.16em]" style={{ color: "var(--foreground-faint)" }}>
+                  {new Date(marker.item.timestamp).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: false })}
+                </p>
+                <p className="mt-2 line-clamp-2 text-[12px] font-semibold leading-snug">{marker.item.title}</p>
+              </button>
+            ))}
+          </div>
+        </aside>
+      </div>
+    </div>
+  );
+}
+
+export function RelationshipModule({ asset }: { asset?: string }) {
+  const [baseAsset, setBaseAsset] = useState((asset && KLINE_CONFIG[asset] ? asset : "BTC").toUpperCase());
+  const [group, setGroup] = useState<RelationshipGroup>("crypto");
+  const [lookback, setLookback] = useState<Lookback>("24H");
+  const [series, setSeries] = useState<SeriesData[]>([]);
+  const [analysisPayload, setAnalysisPayload] = useState<any>(null);
+  const [selectedPeer, setSelectedPeer] = useState<string | null>(null);
+  const [hoverIndex, setHoverIndex] = useState<number | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [chartWidth, setChartWidth] = useState(900);
+  const chartRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (asset && KLINE_CONFIG[asset]) setBaseAsset(asset.toUpperCase());
+  }, [asset]);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/terminal-data", { cache: "no-store" })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((payload) => {
+        if (!cancelled) setAnalysisPayload(payload?.analysis ?? null);
+      })
+      .catch(() => {
+        if (!cancelled) setAnalysisPayload(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const assets = useMemo(() => {
+    const peers = GROUPS[group].assets.filter((item) => item !== baseAsset);
+    return [baseAsset, ...peers];
+  }, [baseAsset, group]);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    setSelectedPeer(null);
+
+    Promise.all(assets.map((item) => fetchSeries(item, lookback)))
+      .then((result) => {
+        if (cancelled) return;
+        const next = result.filter((item): item is SeriesData => Boolean(item));
+        setSeries(next);
+        const firstPeer = next.find((item) => item.asset !== baseAsset)?.asset ?? null;
+        setSelectedPeer(firstPeer);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [assets, baseAsset, lookback]);
+
+  useEffect(() => {
+    const node = chartRef.current;
+    if (!node) return;
+    const observer = new ResizeObserver(([entry]) => setChartWidth(Math.max(320, entry.contentRect.width)));
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, []);
+
+  const baseSeries = series.find((item) => item.asset === baseAsset);
+  const baseMove = pctMove(baseSeries);
+  const basePeriodReturns = periodReturns(baseSeries);
+  const peerRows = useMemo(() => {
+    return series
+      .filter((item) => item.asset !== baseAsset)
+      .map((item) => {
+        const peerMove = pctMove(item);
+        const peerPeriodReturns = periodReturns(item);
+        const corr = correlation(basePeriodReturns, peerPeriodReturns);
+        const sensitivity = beta(peerPeriodReturns, basePeriodReturns);
+        const spread = peerMove - baseMove;
+        return {
+          asset: item.asset,
+          move: peerMove,
+          corr,
+          beta: sensitivity,
+          spread,
+          state: relationshipState(corr, spread, baseMove, peerMove),
+        };
+      })
+      .sort((a, b) => Math.abs(b.corr) - Math.abs(a.corr));
+  }, [baseMove, basePeriodReturns, baseAsset, series]);
+
+  const selectedRow = peerRows.find((row) => row.asset === selectedPeer) ?? peerRows[0];
+  const selectedSeries = series.find((item) => item.asset === selectedRow?.asset);
+  const strongest = peerRows[0];
+  const divergence = [...peerRows].sort((a, b) => Math.abs(b.spread) - Math.abs(a.spread))[0];
+  const confirmingCount = peerRows.filter((row) => row.state === "confirming").length;
+  const marketMode = peerRows.length && confirmingCount >= Math.ceil(peerRows.length / 2) ? "aligned" : "fragmented";
+
+  const allPoints = series.flatMap((item) => item.normalized.map((point) => point.close));
+  const rawMin = allPoints.length ? Math.min(...allPoints) : -1;
+  const rawMax = allPoints.length ? Math.max(...allPoints) : 1;
+  const pad = Math.max(0.5, (rawMax - rawMin) * 0.15);
+  const min = rawMin - pad;
+  const max = rawMax + pad;
+  const zeroY = PAD.top + (1 - (0 - min) / (max - min || 1)) * (CHART_H - PAD.top - PAD.bottom);
+  const hoverPoint = hoverIndex !== null && baseSeries?.normalized[hoverIndex] ? baseSeries.normalized[hoverIndex] : null;
+  const hoverX = hoverIndex !== null && baseSeries?.normalized.length
+    ? PAD.left + (hoverIndex / Math.max(1, baseSeries.normalized.length - 1)) * (chartWidth - PAD.left - PAD.right)
+    : null;
+
+  return (
+    <section className="min-h-screen" style={{ background: "var(--bg)" }}>
+      <div className="border-b px-5 py-5 sm:px-7" style={{ borderColor: B }}>
+        <div className="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
+          <div>
+            <p className="text-[11px] font-mono uppercase tracking-[0.34em]" style={{ color: "var(--foreground-faint)" }}>
+              Analysis Workbench
+            </p>
+            <h1 className="mt-3 text-2xl font-mono font-bold tracking-[-0.04em] sm:text-4xl">
+              {baseAsset} movement lenses
+            </h1>
+            <p className="mt-3 max-w-3xl text-sm leading-relaxed" style={{ color: "var(--foreground-muted)" }}>
+              A workspace for trader analysis: movement relationships, spread behavior, and headline timing pinned directly to the market path.
+            </p>
+          </div>
+
+          <div className="flex flex-wrap gap-2">
+            {BASE_ASSETS.map((item) => (
+              <button
+                key={item}
+                type="button"
+                onClick={() => setBaseAsset(item)}
+                className="border px-4 py-2 text-[11px] font-mono font-bold uppercase tracking-[0.2em] transition-colors"
+                style={{
+                  borderColor: baseAsset === item ? BLUE : B,
+                  color: baseAsset === item ? BLUE : "var(--foreground-muted)",
+                  background: baseAsset === item ? "var(--accent-track)" : "transparent",
+                }}
+              >
+                {item}
+              </button>
+            ))}
           </div>
         </div>
+      </div>
 
-        <div className="grid grid-cols-1 divide-y xl:grid-cols-[minmax(0,1fr)_320px] xl:divide-y-0 xl:divide-x" style={{ borderColor: B }}>
-          <div className="min-w-0" style={{ background: "var(--background)" }}>
-              <div className="border-b px-4 py-3 sm:px-6" style={{ background: "var(--surface-2)", borderColor: B }}>
-              <span className="text-[10px] font-mono uppercase tracking-[0.2em] font-bold" style={{ color: "var(--foreground-dim)" }}>
-                Relative Performance
-              </span>
+      <div className="grid grid-cols-1 border-b lg:grid-cols-4" style={{ borderColor: B }}>
+        <StatBlock label="Base Move" value={fmtPct(baseMove)} meta={`${baseAsset} / ${lookback}`} tone={colorFor(baseMove)} />
+        <StatBlock label="Strongest Link" value={strongest ? strongest.asset : "--"} meta={strongest ? `corr ${fmtDecimal(strongest.corr)}` : "waiting for data"} tone={strongest?.corr && strongest.corr < 0 ? RED : GREEN} />
+        <StatBlock label="Largest Spread" value={divergence ? divergence.asset : "--"} meta={divergence ? `${fmtPct(divergence.spread)} vs ${baseAsset}` : "waiting for data"} tone={divergence ? colorFor(divergence.spread) : undefined} />
+        <StatBlock label="Market Mode" value={marketMode} meta={`${confirmingCount}/${peerRows.length || 0} confirming`} tone={marketMode === "aligned" ? GREEN : "var(--foreground)"} />
+      </div>
+
+      <AnalysisToolsDeck payload={analysisPayload} />
+
+      <div className="grid grid-cols-1 xl:grid-cols-[1fr_360px]" style={{ background: B }}>
+        <div style={{ background: "var(--bg)" }}>
+          <div className="flex flex-col gap-4 border-b px-5 py-4 sm:px-7 lg:flex-row lg:items-center lg:justify-between" style={{ borderColor: B }}>
+            <div>
+              <p className="text-[12px] font-mono uppercase tracking-[0.28em] font-bold" style={{ color: "var(--foreground-dim)" }}>
+                Normalized Return Path
+              </p>
+              <p className="mt-2 text-[11px] font-mono uppercase tracking-[0.18em]" style={{ color: "var(--foreground-faint)" }}>
+                {GROUPS[group].note}
+              </p>
             </div>
-            <div className="relative min-h-[320px] w-full" ref={containerRef}>
-              {loadingSeries ? (
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <span className="text-[11px] font-mono uppercase tracking-widest" style={{ color: LABEL }}>Loading relationship data…</span>
-                </div>
-              ) : series.length === 0 ? (
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <span className="text-[11px] font-mono uppercase tracking-widest" style={{ color: LABEL }}>Relationship data unavailable</span>
-                </div>
-              ) : chartWidth > 0 ? (
-                <svg
-                  className="absolute inset-0 w-full h-full"
-                  style={{ display: "block" }}
-                  onMouseMove={onMouseMove}
-                  onMouseLeave={() => setHoveredIdx(null)}
+            <div className="flex flex-wrap gap-2">
+              {LOOKBACKS.map((item) => (
+                <button
+                  key={item}
+                  type="button"
+                  onClick={() => setLookback(item)}
+                  className="border px-3 py-2 text-[10px] font-mono font-bold uppercase tracking-[0.18em]"
+                  style={{
+                    borderColor: lookback === item ? BLUE : B,
+                    color: lookback === item ? BLUE : "var(--foreground-muted)",
+                    background: lookback === item ? "var(--accent-track)" : "transparent",
+                  }}
                 >
-                  {chartMeta.yTicks.map((tick, i) => (
+                  {item}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div ref={chartRef} className="relative min-h-[420px] px-3 py-5 sm:px-6">
+            {loading ? (
+              <div className="flex h-[420px] items-center justify-center">
+                <p className="text-[11px] font-mono uppercase tracking-[0.28em]" style={{ color: "var(--foreground-faint)" }}>
+                Fetching relationship klines
+                </p>
+              </div>
+            ) : !baseSeries || series.length < 2 ? (
+              <div className="flex h-[420px] items-center justify-center">
+                <p className="text-[11px] font-mono uppercase tracking-[0.28em]" style={{ color: "var(--foreground-faint)" }}>
+                  Not enough kline data for this analysis set
+                </p>
+              </div>
+            ) : (
+              <>
+                <svg
+                  width="100%"
+                  height={CHART_H}
+                  viewBox={`0 0 ${chartWidth} ${CHART_H}`}
+                  preserveAspectRatio="none"
+                  onMouseLeave={() => setHoverIndex(null)}
+                  onMouseMove={(event) => {
+                    const rect = event.currentTarget.getBoundingClientRect();
+                    const x = event.clientX - rect.left;
+                    const innerW = rect.width - PAD.left - PAD.right;
+                    const ratio = Math.min(1, Math.max(0, (x - PAD.left) / innerW));
+                    const idx = Math.round(ratio * Math.max(0, baseSeries.normalized.length - 1));
+                    setHoverIndex(idx);
+                  }}
+                >
+                  {[0.25, 0.5, 0.75].map((ratio) => (
                     <line
-                      key={i}
-                      x1={PAD_LEFT}
-                      x2={chartWidth - PAD_RIGHT}
-                      y1={chartMeta.toY(tick)}
-                      y2={chartMeta.toY(tick)}
+                      key={ratio}
+                      x1={PAD.left}
+                      x2={chartWidth - PAD.right}
+                      y1={PAD.top + ratio * (CHART_H - PAD.top - PAD.bottom)}
+                      y2={PAD.top + ratio * (CHART_H - PAD.top - PAD.bottom)}
                       stroke={GRID}
                       strokeWidth={1}
                     />
                   ))}
-
-                  <line
-                    x1={PAD_LEFT}
-                    x2={chartWidth - PAD_RIGHT}
-                    y1={chartMeta.toY(0)}
-                    y2={chartMeta.toY(0)}
-                    stroke="var(--foreground-faint)"
-                    strokeWidth={1}
-                    strokeDasharray="4 4"
-                  />
-
-                  {hoveredIdx !== null && (
-                    <line
-                      x1={chartMeta.toX(hoveredIdx, chartMeta.maxLen)}
-                      x2={chartMeta.toX(hoveredIdx, chartMeta.maxLen)}
-                      y1={PAD_TOP}
-                      y2={CHART_H - PAD_BOT}
-                      stroke="#333"
-                      strokeWidth={1}
-                    />
-                  )}
+                  <line x1={PAD.left} x2={chartWidth - PAD.right} y1={zeroY} y2={zeroY} stroke="rgba(255,255,255,0.18)" strokeDasharray="4 5" />
 
                   {series.map((item) => {
-                    const points = item.candles
-                      .map((candle, idx) => `${chartMeta.toX(idx, item.candles.length)},${chartMeta.toY(candle.value)}`)
-                      .join(" ");
+                    const isBase = item.asset === baseAsset;
+                    const isSelected = item.asset === selectedRow?.asset;
+                    const stroke = isBase ? BLUE : isSelected ? "var(--foreground)" : MUTED;
                     return (
-                      <polyline
+                      <path
                         key={item.asset}
-                        points={points}
+                        d={buildPath(item.normalized, chartWidth, CHART_H, min, max)}
                         fill="none"
-                        stroke={item.color}
-                        strokeWidth={item.asset === activeAsset ? 3 : 1.8}
-                        strokeOpacity={item.asset === activeAsset ? 1 : 0.55}
+                        stroke={stroke}
+                        strokeWidth={isBase ? 2.4 : isSelected ? 1.9 : 1.1}
+                        opacity={isBase || isSelected ? 1 : 0.52}
+                        vectorEffect="non-scaling-stroke"
                       />
                     );
                   })}
 
                   {series.map((item) => {
-                    const last = item.candles[item.candles.length - 1];
+                    const last = item.normalized[item.normalized.length - 1];
                     if (!last) return null;
+                    const y = PAD.top + (1 - (last.close - min) / (max - min || 1)) * (CHART_H - PAD.top - PAD.bottom);
+                    const isBase = item.asset === baseAsset;
+                    const isSelected = item.asset === selectedRow?.asset;
+                    if (!isBase && !isSelected) return null;
                     return (
                       <text
-                        key={item.asset}
-                        x={chartWidth - PAD_RIGHT + 8}
-                        y={chartMeta.toY(last.value) + 4}
-                        fill={item.color}
+                        key={`${item.asset}-label`}
+                        x={chartWidth - PAD.right + 12}
+                        y={y + 4}
+                        fill={isBase ? BLUE : "var(--foreground)"}
                         fontSize={11}
                         fontFamily="var(--font-mono)"
                         fontWeight="bold"
@@ -872,458 +1021,222 @@ export function RelationshipModule({ asset: activeAsset }: { asset: string }) {
                     );
                   })}
 
-                  {chartMeta.yTicks.map((tick, i) => (
-                    <text
-                      key={i}
-                      x={chartWidth - PAD_RIGHT + 8}
-                      y={chartMeta.toY(tick) + 4}
-                      fill={LABEL}
-                      fontSize={10}
-                      fontFamily="var(--font-mono)"
-                    >
-                      {fmtPercent(tick)}
-                    </text>
-                  ))}
+                  {hoverPoint && hoverX !== null && (
+                    <>
+                      <line x1={hoverX} x2={hoverX} y1={PAD.top} y2={CHART_H - PAD.bottom} stroke="rgba(255,255,255,0.22)" strokeDasharray="4 5" />
+                      <circle
+                        cx={hoverX}
+                        cy={PAD.top + (1 - (hoverPoint.close - min) / (max - min || 1)) * (CHART_H - PAD.top - PAD.bottom)}
+                        r={4}
+                        fill={BLUE}
+                      />
+                    </>
+                  )}
 
-                  {series[0] && [0, 72, 144, 216, 287].map((idx, i) => {
-                    const candle = series[0].candles[Math.min(idx, series[0].candles.length - 1)];
-                    if (!candle) return null;
-                    return (
-                      <text
-                        key={i}
-                        x={chartMeta.toX(Math.min(idx, series[0].candles.length - 1), chartMeta.maxLen)}
-                        y={CHART_H - 8}
-                        fill={LABEL}
-                        fontSize={10}
-                        fontFamily="var(--font-mono)"
-                        textAnchor="middle"
-                      >
-                        {fmtTime(candle.time)}
-                      </text>
-                    );
-                  })}
+                  <text x={PAD.left} y={20} fill="rgba(255,255,255,0.42)" fontSize={10} fontFamily="var(--font-mono)">
+                    {fmtPct(max)}
+                  </text>
+                  <text x={PAD.left} y={CHART_H - 10} fill="rgba(255,255,255,0.42)" fontSize={10} fontFamily="var(--font-mono)">
+                    {fmtPct(min)}
+                  </text>
                 </svg>
-              ) : null}
+
+                {hoverPoint && hoverX !== null && (
+                  <div
+                    className="pointer-events-none absolute top-8 min-w-[180px] border px-3 py-2"
+                    style={{
+                      left: Math.min(Math.max(20, hoverX + 18), Math.max(20, chartWidth - 220)),
+                      borderColor: B,
+                      background: "rgba(5,5,5,0.94)",
+                    }}
+                  >
+                    <p className="text-[10px] font-mono uppercase tracking-[0.18em]" style={{ color: "var(--foreground-faint)" }}>
+                      {new Date(hoverPoint.time).toLocaleString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", hour12: false })}
+                    </p>
+                    <p className="mt-2 text-[16px] font-mono font-bold tabular-nums" style={{ color: colorFor(hoverPoint.close) }}>
+                      {baseAsset} {fmtPct(hoverPoint.close)}
+                    </p>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        </div>
+
+        <aside className="border-t xl:border-l xl:border-t-0" style={{ background: "var(--surface)", borderColor: B }}>
+          <div className="border-b px-5 py-4" style={{ borderColor: B }}>
+            <p className="text-[11px] font-mono uppercase tracking-[0.26em] font-bold" style={{ color: "var(--foreground-dim)" }}>
+              Analysis Set
+            </p>
+            <div className="mt-4 grid grid-cols-2 gap-2">
+              {(Object.keys(GROUPS) as RelationshipGroup[]).map((item) => (
+                <button
+                  key={item}
+                  type="button"
+                  onClick={() => setGroup(item)}
+                  className="border px-3 py-3 text-left text-[10px] font-mono font-bold uppercase tracking-[0.16em]"
+                  style={{
+                    borderColor: group === item ? BLUE : B,
+                    color: group === item ? BLUE : "var(--foreground-muted)",
+                    background: group === item ? "var(--accent-track)" : "transparent",
+                  }}
+                >
+                  {GROUPS[item].label}
+                </button>
+              ))}
             </div>
           </div>
 
-          <div style={{ background: "var(--surface)" }}>
-            <div className="border-b px-4 py-3 sm:px-5 sm:py-4" style={{ borderColor: B }}>
-              <p className="text-[11px] font-mono uppercase tracking-widest font-bold" style={{ color: "var(--foreground-dim)" }}>
-                Relative Strength Ranking
+          <div className="px-5 py-5">
+            <p className="text-[10px] font-mono uppercase tracking-[0.26em]" style={{ color: "var(--foreground-faint)" }}>
+              Selected Lens
+            </p>
+            <p className="mt-3 text-3xl font-mono font-bold">{baseAsset} / {selectedRow?.asset ?? "--"}</p>
+            <div className="mt-5 grid grid-cols-2 gap-px overflow-hidden border" style={{ borderColor: B, background: B }}>
+              <div className="p-3" style={{ background: "var(--bg)" }}>
+                <p className="text-[10px] font-mono uppercase tracking-[0.2em]" style={{ color: "var(--foreground-faint)" }}>Corr</p>
+                <p className="mt-2 text-xl font-mono font-bold">{selectedRow ? fmtDecimal(selectedRow.corr) : "--"}</p>
+              </div>
+              <div className="p-3" style={{ background: "var(--bg)" }}>
+                <p className="text-[10px] font-mono uppercase tracking-[0.2em]" style={{ color: "var(--foreground-faint)" }}>Beta</p>
+                <p className="mt-2 text-xl font-mono font-bold">{selectedRow ? fmtDecimal(selectedRow.beta) : "--"}</p>
+              </div>
+              <div className="p-3" style={{ background: "var(--bg)" }}>
+                <p className="text-[10px] font-mono uppercase tracking-[0.2em]" style={{ color: "var(--foreground-faint)" }}>Spread</p>
+                <p className="mt-2 text-xl font-mono font-bold" style={{ color: selectedRow ? colorFor(selectedRow.spread) : "var(--foreground)" }}>
+                  {selectedRow ? fmtPct(selectedRow.spread) : "--"}
+                </p>
+              </div>
+              <div className="p-3" style={{ background: "var(--bg)" }}>
+                <p className="text-[10px] font-mono uppercase tracking-[0.2em]" style={{ color: "var(--foreground-faint)" }}>State</p>
+                <p className="mt-2 text-xl font-mono font-bold uppercase" style={{ color: selectedRow?.state === "inverse" ? RED : selectedRow?.state === "confirming" ? GREEN : "var(--foreground)" }}>
+                  {selectedRow?.state ?? "--"}
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-5 border-t pt-5" style={{ borderColor: B }}>
+              <p className="text-[12px] leading-relaxed" style={{ color: "var(--foreground-muted)" }}>
+                {selectedRow?.state === "confirming" && `${selectedRow.asset} is moving with ${baseAsset}. This is useful confirmation when both are pressing in the same direction.`}
+                {selectedRow?.state === "inverse" && `${selectedRow.asset} is trading against ${baseAsset}. Treat it as a hedge or macro-pressure lens, not confirmation.`}
+                {selectedRow?.state === "diverging" && `${selectedRow.asset} has opened a wide spread versus ${baseAsset}. This is where relative value, catch-up, or decoupling risk lives.`}
+                {selectedRow?.state === "loose" && `${selectedRow.asset} is not giving a clean analysis read against ${baseAsset} in this window.`}
               </p>
             </div>
-            <div className="divide-y" style={{ borderColor: B }}>
-              {!metrics ? (
-                <div className="p-5"><SkeletonBlock lines={5} /></div>
-              ) : (
-                metrics.latest.map((item, idx) => (
-                  <div key={item.asset} className="px-5 py-4 flex items-center justify-between" style={{ borderColor: B }}>
-                    <div className="flex items-center gap-3">
-                      <span className="text-[11px] font-mono tabular-nums font-bold" style={{ color: "var(--foreground-faint)" }}>
-                        {String(idx + 1).padStart(2, "0")}
-                      </span>
-                      <span className="text-[13px] font-mono font-bold" style={{ color: item.color }}>{item.asset}</span>
-                    </div>
-                    <span className="text-[12px] font-mono font-semibold" style={{ color: item.value >= 0 ? "var(--bull)" : "var(--bear)" }}>
-                      {fmtPercent(item.value)}
-                    </span>
-                  </div>
-                ))
-              )}
-            </div>
+
+            {selectedSeries && baseSeries && (
+              <div className="mt-6">
+                <p className="mb-3 text-[10px] font-mono uppercase tracking-[0.24em]" style={{ color: "var(--foreground-faint)" }}>
+                  Latest Moves
+                </p>
+                <div className="space-y-3">
+                  {[baseSeries, selectedSeries].map((item) => {
+                    const move = pctMove(item);
+                    return (
+                      <div key={item.asset}>
+                        <div className="mb-1 flex items-center justify-between text-[11px] font-mono font-bold uppercase tracking-[0.16em]">
+                          <span>{item.asset}</span>
+                          <span style={{ color: colorFor(move) }}>{fmtPct(move)}</span>
+                        </div>
+                        <div className="h-1 bg-white/10">
+                          <div
+                            className="h-full"
+                            style={{
+                              width: `${Math.min(100, Math.max(6, Math.abs(move) * 9))}%`,
+                              background: colorFor(move),
+                            }}
+                          />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </div>
-        </div>
+        </aside>
       </div>
 
-      <div>
-        <SectionLabel eyebrow="News on Chart" title={`${WAVE_CATEGORY_LABELS[waveCategory]} Wave Map`} meta={`${newsWindow} · ${NEWS_WINDOW_INTERVAL[newsWindow]} · Market-Wide Feed`} />
-        <div style={{ borderColor: B }}>
-          <div className="border-b px-4 py-3 sm:px-6 sm:py-4 flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between" style={{ borderColor: B, background: "var(--surface)" }}>
-            <div className="flex flex-wrap items-center gap-3">
-              <span className="text-[11px] font-mono uppercase tracking-[0.16em] font-bold" style={{ color: "var(--foreground-dim)" }}>
-                Wave Map Filter
-              </span>
-              <div className="flex flex-wrap gap-1">
-                {WAVE_CATEGORIES.map((category) => (
-                  <button
-                    key={category}
-                    type="button"
-                    onClick={() => setWaveCategory(category)}
-                    className="px-3 py-1.5 text-[11px] font-mono border rounded transition-colors"
-                    style={{
-                      borderColor: waveCategory === category ? "var(--accent)" : B,
-                      background: waveCategory === category ? "var(--accent-track)" : "transparent",
-                      color: waveCategory === category ? "var(--accent)" : "var(--foreground-dim)",
-                    }}
-                  >
-                    {WAVE_CATEGORY_LABELS[category]}
-                  </button>
+      <div className="border-t" style={{ borderColor: B }}>
+        <div className="border-b px-5 py-4 sm:px-7" style={{ borderColor: B }}>
+          <p className="text-[12px] font-mono uppercase tracking-[0.28em] font-bold" style={{ color: "var(--foreground-dim)" }}>
+            Relationship Matrix
+          </p>
+        </div>
+
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[880px] border-collapse">
+            <thead>
+              <tr className="border-b" style={{ borderColor: B }}>
+                {["Peer", "Move", "Spread", "Correlation", "Beta", "Read"].map((item) => (
+                  <th key={item} className="px-5 py-3 text-left text-[10px] font-mono uppercase tracking-[0.24em]" style={{ color: "var(--foreground-faint)" }}>
+                    {item}
+                  </th>
                 ))}
-              </div>
-            </div>
-
-            <div className="flex flex-wrap items-center gap-3">
-              <span className="text-[11px] font-mono uppercase tracking-[0.16em] font-bold" style={{ color: "var(--foreground-dim)" }}>
-                Chart Window
-              </span>
-              <div className="flex flex-wrap gap-1">
-                {NEWS_WINDOW_OPTIONS.map((option) => (
-                  <button
-                    key={option}
-                    type="button"
-                    onClick={() => setNewsWindow(option)}
-                    className="px-3 py-1.5 text-[11px] font-mono border rounded transition-colors"
-                    style={{
-                      borderColor: newsWindow === option ? "var(--accent)" : B,
-                      background: newsWindow === option ? "var(--accent-track)" : "transparent",
-                      color: newsWindow === option ? "var(--accent)" : "var(--foreground-dim)",
-                    }}
-                  >
-                    {option}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <span className="text-[10px] font-mono uppercase tracking-[0.16em] font-semibold" style={{ color: "var(--foreground-faint)" }}>
-              {waveAssets.join(" / ")}
-            </span>
-          </div>
-
-          <div className="min-w-0 border-b" style={{ borderColor: B, background: "#000000" }}>
-            <div className="px-6 py-3 border-b flex flex-wrap items-center justify-between gap-3" style={{ background: "var(--surface-2)", borderColor: B }}>
-              <span className="text-[10px] font-mono uppercase tracking-[0.2em] font-bold" style={{ color: "var(--foreground-dim)" }}>
-                {waveAssets.join(" / ")} Wave Map
-              </span>
-              <span className="text-[10px] font-mono uppercase tracking-[0.16em]" style={{ color: "var(--foreground-faint)" }}>
-                Hover a signal node to reveal the matching news cluster
-              </span>
-            </div>
-            <div className="relative min-h-[320px] sm:min-h-[420px] w-full overflow-hidden" ref={newsChartRef} style={{ background: "#000000" }}>
-              {loadingNewsSeries ? (
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <span className="text-[11px] font-mono uppercase tracking-widest" style={{ color: LABEL }}>Loading news map…</span>
-                </div>
-              ) : newsSeries.length === 0 ? (
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <span className="text-[11px] font-mono uppercase tracking-widest" style={{ color: LABEL }}>Wave data unavailable</span>
-                </div>
-              ) : newsChartWidth > 0 ? (
-                <>
-                  <svg className="absolute inset-0 h-full w-full" style={{ display: "block" }} onMouseLeave={() => setHoveredNewsId(null)}>
-                    {newsChartMeta.yTicks.map((tick, i) => (
-                      <line
-                        key={i}
-                        x1={PAD_LEFT}
-                        x2={newsChartWidth - PAD_RIGHT}
-                        y1={newsChartMeta.toY(tick)}
-                        y2={newsChartMeta.toY(tick)}
-                        stroke={GRID}
-                        strokeWidth={1}
-                      />
-                    ))}
-
-                    <line
-                      x1={PAD_LEFT}
-                      x2={newsChartWidth - PAD_RIGHT}
-                      y1={newsChartMeta.toY(0)}
-                      y2={newsChartMeta.toY(0)}
-                      stroke="var(--foreground-faint)"
-                      strokeWidth={1}
-                      strokeDasharray="4 4"
-                    />
-
-                    {newsSeries.map((item) => {
-                      const points = item.candles
-                        .map((candle, idx) => `${newsChartMeta.toX(idx, item.candles.length)},${newsChartMeta.toY(candle.value)}`)
-                        .join(" ");
-                      return (
-                        <polyline
-                          key={item.asset}
-                          points={points}
-                          fill="none"
-                          stroke={item.color}
-                          strokeWidth={3}
-                          strokeOpacity={0.9}
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        />
-                      );
-                    })}
-
-                    {visibleNewsMarkers.map((marker) => {
-                      const active =
-                        marker.items.some((item) => item.id === hoveredNewsId) ||
-                        (!hoveredNewsId && activeNewsMarker?.bucket === marker.bucket);
-                      return (
-                        <g
-                          key={marker.bucket}
-                          onMouseEnter={() => setHoveredNewsId(marker.items[0]?.id ?? null)}
-                          onMouseLeave={() => setHoveredNewsId(null)}
-                          style={{ cursor: "pointer" }}
-                        >
-                          <rect
-                            x={marker.x - 8}
-                            y={PAD_TOP + 6}
-                            width={16}
-                            height={NEWS_CHART_H - PAD_TOP - PAD_BOT + 10}
-                            fill="transparent"
-                          />
-                          <line
-                            x1={marker.x}
-                            x2={marker.x}
-                            y1={marker.laneY}
-                            y2={NEWS_CHART_H - PAD_BOT - 14}
-                            stroke={active ? "rgba(255,255,255,0.28)" : "rgba(255,255,255,0.12)"}
-                            strokeWidth={1}
-                            strokeDasharray="4 5"
-                          />
-                          <circle
-                            cx={marker.x}
-                            cy={marker.laneY}
-                            r={active ? 5 : 4}
-                            fill={active ? "var(--accent)" : "#9a9a9a"}
-                            stroke="#000000"
-                            strokeWidth={active ? 1.5 : 1}
-                          />
-                          {marker.itemCount > 1 && (
-                            <text
-                              x={marker.x}
-                              y={marker.laneY - 10}
-                              textAnchor="middle"
-                              fill={active ? "var(--accent)" : "rgba(255,255,255,0.5)"}
-                              fontSize={7}
-                              fontFamily="var(--font-mono)"
-                              fontWeight="bold"
-                            >
-                              {marker.itemCount}
-                            </text>
-                          )}
-                        </g>
-                      );
-                    })}
-
-                    {newsSeries.map((item) => {
-                      const last = item.candles[item.candles.length - 1];
-                      if (!last) return null;
-                      return (
-                        <text
-                          key={item.asset}
-                          x={newsChartWidth - PAD_RIGHT + 8}
-                          y={newsChartMeta.toY(last.value) + 4}
-                          fill={item.color}
-                          fontSize={11}
-                          fontFamily="var(--font-mono)"
-                          fontWeight="bold"
-                        >
-                          {item.asset}
-                        </text>
-                      );
-                    })}
-
-                    {newsAxisTicks.map((candle, i) => {
-                      const idx = newsSeries[0].candles.findIndex((point) => point.time === candle.time);
-                      return (
-                        <text
-                          key={i}
-                          x={newsChartMeta.toX(Math.max(0, idx), newsChartMeta.maxLen)}
-                          y={NEWS_CHART_H - 8}
-                          fill={LABEL}
-                          fontSize={10}
-                          fontFamily="var(--font-mono)"
-                          textAnchor="middle"
-                        >
-                          {fmtAxisTime(candle.time, newsWindow)}
-                        </text>
-                      );
-                    })}
-                  </svg>
-
-                  {activeNewsMarker && (
-                    <div
-                      className="absolute left-3 right-3 top-3 z-10 max-w-[360px] rounded-2xl border p-3 shadow-2xl backdrop-blur-md sm:left-4 sm:right-auto sm:top-4 sm:p-4"
-                      style={{
-                        borderColor: "rgba(255,255,255,0.12)",
-                        background: "rgba(8,8,8,0.94)",
-                      }}
+              </tr>
+            </thead>
+            <tbody>
+              {loading ? (
+                <tr>
+                  <td colSpan={6} className="px-5 py-8 text-[11px] font-mono uppercase tracking-[0.24em]" style={{ color: "var(--foreground-faint)" }}>
+                    Loading matrix
+                  </td>
+                </tr>
+              ) : peerRows.length ? (
+                peerRows.map((row) => {
+                  const active = row.asset === selectedRow?.asset;
+                  return (
+                    <tr
+                      key={row.asset}
+                      className="cursor-pointer border-b transition-colors"
+                      style={{ borderColor: B, background: active ? "var(--surface)" : "transparent" }}
+                      onClick={() => setSelectedPeer(row.asset)}
                     >
-                      <div className="mb-3 flex items-center justify-between gap-3">
-                        <div>
-                          <p className="text-[10px] font-mono uppercase tracking-[0.18em]" style={{ color: "var(--foreground-faint)" }}>
-                            News Cluster
-                          </p>
-                          <p className="text-[12px] font-mono font-semibold" style={{ color: "var(--foreground-dim)" }}>
-                            {new Date(activeNewsMarker.bucket).toLocaleString("en-US", {
-                              month: "short",
-                              day: "numeric",
-                              hour: "2-digit",
-                              minute: "2-digit",
-                              hour12: false,
-                            })}
-                          </p>
+                      <td className="px-5 py-4 text-[14px] font-mono font-bold">{row.asset}</td>
+                      <td className="px-5 py-4 text-[13px] font-mono font-bold tabular-nums" style={{ color: colorFor(row.move) }}>{fmtPct(row.move)}</td>
+                      <td className="px-5 py-4 text-[13px] font-mono font-bold tabular-nums" style={{ color: colorFor(row.spread) }}>{fmtPct(row.spread)}</td>
+                      <td className="px-5 py-4">
+                        <div className="flex items-center gap-3">
+                          <span className="w-12 text-[13px] font-mono font-bold tabular-nums">{fmtDecimal(row.corr)}</span>
+                          <div className="h-1.5 w-32 bg-white/10">
+                            <div
+                              className="h-full"
+                              style={{
+                                width: `${Math.min(100, Math.abs(row.corr) * 100)}%`,
+                                background: row.corr >= 0 ? GREEN : RED,
+                              }}
+                            />
+                          </div>
                         </div>
+                      </td>
+                      <td className="px-5 py-4 text-[13px] font-mono font-bold tabular-nums">{fmtDecimal(row.beta)}</td>
+                      <td className="px-5 py-4">
                         <span
-                          className="rounded-full px-2.5 py-1 text-[10px] font-mono font-bold uppercase tracking-[0.16em]"
+                          className="border px-3 py-1 text-[10px] font-mono font-bold uppercase tracking-[0.18em]"
                           style={{
-                            color: "var(--accent)",
-                            background: "var(--accent-track)",
+                            borderColor: row.state === "confirming" ? "rgba(34,197,94,0.45)" : row.state === "inverse" ? "rgba(239,68,68,0.45)" : B,
+                            color: row.state === "confirming" ? GREEN : row.state === "inverse" ? RED : "var(--foreground-muted)",
                           }}
                         >
-                          {activeNewsMarker.itemCount} headline{activeNewsMarker.itemCount > 1 ? "s" : ""}
+                          {row.state}
                         </span>
-                      </div>
-
-                      <div className="space-y-3">
-                        {activeNewsMarker.items.slice(0, 3).map((item, idx) => (
-                          <button
-                            key={item.id}
-                            type="button"
-                            className="block w-full rounded-xl border px-3 py-2 text-left transition-colors"
-                            style={{
-                              borderColor: hoveredNewsId === item.id ? "var(--accent)" : "rgba(255,255,255,0.08)",
-                              background: hoveredNewsId === item.id ? "rgba(255,166,0,0.08)" : "rgba(255,255,255,0.02)",
-                            }}
-                            onMouseEnter={() => setHoveredNewsId(item.id)}
-                            onClick={() => item.source_link && window.open(item.source_link, "_blank")}
-                          >
-                            <div className="mb-1 flex items-center justify-between gap-3">
-                              <span className="text-[10px] font-mono uppercase tracking-[0.16em]" style={{ color: "var(--foreground-faint)" }}>
-                                {idx === 0 ? "Lead" : `Follow ${idx}`}
-                              </span>
-                              <span className="text-[10px] font-mono" style={{ color: "var(--foreground-dim)" }}>
-                                {fmtTime(item.timestamp_ms)}
-                              </span>
-                            </div>
-                            <p className="text-[12px] font-semibold leading-snug" style={{ color: "var(--foreground)" }}>
-                              {displayNewsTitle(item)}
-                            </p>
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </>
-              ) : null}
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 gap-px lg:grid-cols-2" style={{ background: B }}>
-            <div style={{ background: "var(--surface)" }}>
-              <div className="border-b px-4 py-3 sm:px-5 sm:py-4" style={{ borderColor: B }}>
-                <p className="text-[11px] font-mono uppercase tracking-widest font-bold" style={{ color: "var(--foreground-dim)" }}>
-                  Major Headlines
-                </p>
-              </div>
-
-              <div className="max-h-[360px] sm:max-h-[420px] overflow-y-auto">
-                {loadingNews ? (
-                  <div className="p-5"><SkeletonBlock lines={5} /></div>
-                ) : !hotNews.length ? (
-                  <div className="p-5">
-                    <p className="text-[11px] font-mono uppercase tracking-widest" style={{ color: "var(--foreground-faint)" }}>
-                      No major headlines found
-                    </p>
-                  </div>
-                ) : (
-                  majorHeadlines.map((item) => {
-                    const active = hoveredNewsId === item.id;
-                    return (
-                      <button
-                        key={item.id}
-                        type="button"
-                        className="w-full border-b px-5 py-4 text-left transition-colors"
-                        style={{
-                          borderColor: B,
-                          background: active ? "var(--surface-2)" : "transparent",
-                        }}
-                        onMouseEnter={() => setHoveredNewsId(item.id)}
-                        onMouseLeave={() => setHoveredNewsId(null)}
-                        onClick={() => item.source_link && window.open(item.source_link, "_blank")}
-                      >
-                        <div className="mb-2 flex items-center justify-between gap-4">
-                          <span className="text-[10px] font-mono uppercase tracking-widest font-bold" style={{ color: "var(--foreground-dim)" }}>
-                            {new Date(item.timestamp_ms).toLocaleString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", hour12: false })}
-                          </span>
-                          <span
-                            className="rounded-full px-2 py-1 text-[9px] font-mono uppercase tracking-widest"
-                            style={{
-                              color: active ? "var(--accent)" : "var(--foreground-faint)",
-                              background: active ? "var(--accent-track)" : "var(--surface-2)",
-                            }}
-                          >
-                            on chart
-                          </span>
-                        </div>
-                        <p className="text-[13px] font-bold leading-snug" style={{ color: active ? "var(--accent)" : "var(--foreground)" }}>
-                          {displayNewsTitle(item)}
-                        </p>
-                      </button>
-                    );
-                  })
-                )}
-              </div>
-            </div>
-
-            <div style={{ background: "var(--surface)" }}>
-              <div className="border-b px-4 py-3 sm:px-5 sm:py-4" style={{ borderColor: B }}>
-                <p className="text-[11px] font-mono uppercase tracking-widest font-bold" style={{ color: "var(--foreground-dim)" }}>
-                  Recent Headlines
-                </p>
-              </div>
-
-              <div className="max-h-[360px] sm:max-h-[420px] overflow-y-auto">
-                {loadingNews ? (
-                  <div className="p-5"><SkeletonBlock lines={6} /></div>
-                ) : !hotNews.length ? (
-                  <div className="p-5">
-                    <p className="text-[11px] font-mono uppercase tracking-widest" style={{ color: "var(--foreground-faint)" }}>
-                      No recent headlines found
-                    </p>
-                  </div>
-                ) : (
-                  hotNews.map((item) => {
-                    const active = hoveredNewsId === item.id;
-                    return (
-                      <button
-                        key={item.id}
-                        type="button"
-                        className="w-full border-b px-5 py-4 text-left transition-colors"
-                        style={{
-                          borderColor: B,
-                          background: active ? "var(--surface-2)" : "transparent",
-                        }}
-                        onMouseEnter={() => setHoveredNewsId(item.id)}
-                        onMouseLeave={() => setHoveredNewsId(null)}
-                        onClick={() => item.source_link && window.open(item.source_link, "_blank")}
-                      >
-                        <div className="mb-2 flex items-center justify-between gap-4">
-                          <span className="text-[10px] font-mono uppercase tracking-widest font-bold" style={{ color: "var(--foreground-dim)" }}>
-                            {new Date(item.timestamp_ms).toLocaleString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", hour12: false })}
-                          </span>
-                          {item.is_major && (
-                            <span className="text-[9px] font-mono uppercase tracking-widest" style={{ color: "var(--accent)" }}>
-                              major
-                            </span>
-                          )}
-                        </div>
-                        <p className="mb-2 text-[12px] font-semibold leading-snug" style={{ color: active ? "var(--accent)" : "var(--foreground)" }}>
-                          {displayNewsTitle(item)}
-                        </p>
-                        {item.content_excerpt && (
-                          <p className="text-[11px] leading-relaxed" style={{ color: "var(--foreground-muted)" }}>
-                            {item.content_excerpt}
-                          </p>
-                        )}
-                      </button>
-                    );
-                  })
-                )}
-              </div>
-            </div>
-          </div>
+                      </td>
+                    </tr>
+                  );
+                })
+              ) : (
+                <tr>
+                  <td colSpan={6} className="px-5 py-8 text-[11px] font-mono uppercase tracking-[0.24em]" style={{ color: "var(--foreground-faint)" }}>
+                    No analysis rows available
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
         </div>
       </div>
-    </div>
+
+      <EventImpactMap baseAsset={baseAsset} baseSeries={baseSeries} />
+    </section>
   );
 }

@@ -1,102 +1,93 @@
 # Narralytica Web
 
-Narralytica Web is the frontend for the Narralytica signal platform.
+Narralytica is a crypto market context terminal. It gives readers a structured view of market pulse, liquidity, ETF flows, macro catalysts, news, treasury activity, and narrative rotation without presenting itself as a simple buy/sell signal tool.
 
-## What It Does
+This repository is the website. It renders the terminal interface and reads prepared payloads from Supabase through server-side Next.js API routes.
 
-Turns backend-generated market signals into a live trading interface and a simple asset-specific signal endpoint.
+## What This Repo Does
 
-## Why It's Different
+- Displays the Narralytica terminal experience.
+- Renders market pulse, structure, analysis, events, watchlists, and desk views.
+- Reads terminal payloads from Supabase via `/api/terminal-data`.
+- Keeps provider secrets out of the browser.
 
-Narralytica does not stop at showing charts or raw indicators. It translates a multi-factor backend engine into a usable frontend layer with current decisions, tactical quick-trade reads, relationship context, and a clean signal endpoint that can be consumed directly.
-
-## What The User Gets
-
-- a live asset decision view
-- a current directional read
-- conviction and sizing context
-- quick-trade setup inputs for supported assets
-- relationship and market context views
-- a public asset-specific signal endpoint
-
-## What It Is
-
-This app turns backend-published signal data into a trading-oriented interface.
-
-It presents:
-- major asset decision signals
-- quick trade reads for supported assets
-- relationship and market context views
-- a public signal endpoint for asset-specific JSON output
-
-## What It Does
-
-This app reads the latest published signal data from backend infrastructure and turns it into a clean trading interface.
-
-The product is designed to:
-- surface the current directional read for an asset
-- show supporting signal structure in a readable way
-- expose a simple machine-friendly signal endpoint
-
-## Live Endpoint
-
-Production signal endpoint example:
-
-```bash
-https://www.narralytica.xyz/api/signal-api?asset=BTC
-```
+The backend that fetches, calculates, and publishes the data lives in a separate Narralytica backend repository.
 
 ## Data Flow
 
-1. The backend generates decision signals and quick-trade payloads.
-2. Those outputs are published into Supabase.
-3. This website reads the latest state from Supabase.
-4. The frontend renders decision views, relationship views, quick-trade panels, and the public signal endpoint.
+```text
+Backend repo
+-> publishes terminal payloads to Supabase
+-> this website reads Supabase from /api/terminal-data
+-> React components render the terminal
+```
 
-## Stack
+The website does not run the main market-data pipeline. It only reads the finished payloads.
 
-- Next.js
-- React
-- TypeScript
-- Supabase
+## Main Files
+
+- `app/page.tsx`  
+  Main app shell and view switching.
+- `app/api/terminal-data/route.ts`  
+  Reads terminal payloads from Supabase.
+- `app/api/hot-news/route.ts`  
+  Lightweight hot-news proxy used by the relationship module.
+- `components/narralytica/market-terminal.tsx`  
+  Main terminal, desk, analysis, events, and watch sections.
+- `components/narralytica/relationship-module.tsx`  
+  Relationship and event-impact exploration view.
 
 ## Local Development
 
-Install dependencies and run the app:
+Install dependencies:
 
 ```bash
 npm install
+```
+
+Run locally:
+
+```bash
 npm run dev
 ```
 
-For local preview, the app runs on the default Next.js development port.
+Build for production:
+
+```bash
+npm run build
+```
 
 ## Environment
 
-This project expects local environment variables for its backend connection.
+The website needs read-only Supabase credentials.
 
-Create a local `.env` file with the required values for:
-- Supabase URL
-- Supabase anon key
-- any other server-side values used by local API routes
+```env
+SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_ANON_KEY=your-anon-key
+```
 
-Do not commit secrets.
+The route also accepts these local names:
 
-## Main Areas
+```env
+NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
+```
 
-- `app/` - routes, pages, and API endpoints
-- `components/` - UI modules
-- `lib/` - data access, formatting, and shared helpers
-- `styles/` - styling utilities
+Do not add provider API keys or the Supabase service-role key to this website. Those belong in the backend only.
 
-## News Data
+## Deployment
 
-Website news is handled on the web side through its own API routes and SoSoValue-powered news reads.
+On Vercel, set:
 
-The backend signal repo is not the active news pipeline for the current website experience.
+```env
+SUPABASE_URL
+SUPABASE_ANON_KEY
+```
+
+Before the deployed website can show fresh data, the backend must publish rows into `public.terminal_payloads` in Supabase.
 
 ## Notes
 
-- `.next/` is generated build output
-- `node_modules/` contains installed dependencies
-- local log files can be deleted safely when not needed
+- `.next/`, `.vercel/`, `node_modules/`, logs, and env files are ignored by git.
+- The website is a read layer; storage and refresh timing are handled outside this repo.
+- Keep public-facing docs high level. Do not commit internal keys, generated build output, or private runtime data.
