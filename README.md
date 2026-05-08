@@ -9,7 +9,7 @@ This repository is the website. It renders the terminal interface and reads prep
 - Displays the Narralytica terminal experience.
 - Renders market pulse, structure, analysis, events, watchlists, and desk views.
 - Reads terminal payloads from Supabase via `/api/terminal-data`.
-- Keeps provider secrets out of the browser.
+- Uses server-side routes for data access.
 
 The backend that fetches, calculates, and publishes the data lives in a separate Narralytica backend repository.
 
@@ -73,7 +73,7 @@ NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
 ```
 
-Do not add provider API keys or the Supabase service-role key to this website. Those belong in the backend only.
+Market-data provider keys and publishing credentials are configured in the backend repository.
 
 ## Deployment
 
@@ -88,6 +88,5 @@ Before the deployed website can show fresh data, the backend must publish rows i
 
 ## Notes
 
-- `.next/`, `.vercel/`, `node_modules/`, logs, and env files are ignored by git.
 - The website is a read layer; storage and refresh timing are handled outside this repo.
-- Keep public-facing docs high level. Do not commit internal keys, generated build output, or private runtime data.
+- Build output and local environment files are ignored by git.
