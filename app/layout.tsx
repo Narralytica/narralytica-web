@@ -11,9 +11,9 @@ export const metadata: Metadata = {
   description: 'Market context and decision-intelligence for BTC and ETH.',
   generator: 'v0.app',
   icons: {
-    icon: '/icon.svg',
-    shortcut: '/icon.svg',
-    apple: '/icon.svg',
+    icon: [{ url: '/icon.svg?v=4', type: 'image/svg+xml' }],
+    shortcut: [{ url: '/icon.svg?v=4', type: 'image/svg+xml' }],
+    apple: [{ url: '/icon.svg?v=4', type: 'image/svg+xml' }],
   },
 }
 

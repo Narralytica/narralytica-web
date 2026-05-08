@@ -204,7 +204,7 @@ export function PriceChart({
   const yMax = rawMax + pad;
 
   const compactPadRight = 14;
-  const compactPadBottom = 12;
+  const compactPadBottom = 0;
   const chartH = compact ? compactHeight : width > 0 && width < 640 ? MOBILE_CHART_H : CHART_H;
   const rightPad = compact ? compactPadRight : PAD_RIGHT;
   const bottomPad = compact ? compactPadBottom : PAD_BOT;
