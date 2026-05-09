@@ -449,7 +449,7 @@ function TopContextSection({
 
   return (
     <div className="grid grid-cols-1 border-b xl:grid-cols-[240px_minmax(420px,0.82fr)_minmax(460px,0.9fr)]" style={{ borderColor: B }}>
-      <div className="flex border-b px-5 py-5 xl:min-h-[386px] xl:flex-col xl:justify-between xl:border-b-0 xl:border-r xl:px-5 xl:py-7" style={{ borderColor: B }}>
+      <div className="flex border-b px-4 py-5 sm:px-5 xl:min-h-[386px] xl:flex-col xl:justify-between xl:border-b-0 xl:border-r xl:px-5 xl:py-7" style={{ borderColor: B }}>
         {longShare != null && shortShare != null ? (
           <div className="flex w-full flex-col gap-6">
             <div>
@@ -464,11 +464,11 @@ function TopContextSection({
                 <span>Futures</span>
               </p>
             </div>
-            <div className="flex h-56 items-end gap-4 xl:h-64">
+            <div className="flex h-44 items-end gap-4 sm:h-52 xl:h-64">
               <div className="flex h-full flex-1 flex-col">
                 <p className="mb-2 text-[11px] font-mono uppercase tracking-[0.12em]" style={{ color: "var(--foreground-muted)" }}>Long</p>
-                <p className="mb-4 text-[20px] font-mono font-bold tabular-nums" style={{ color: "var(--foreground)" }}>{(longShare * 100).toFixed(2)}%</p>
-                <div className="relative mt-auto h-36 border-t xl:h-44" style={{ borderColor: "rgba(255,255,255,0.06)" }}>
+                <p className="mb-3 text-[18px] font-mono font-bold tabular-nums sm:text-[20px]" style={{ color: "var(--foreground)" }}>{(longShare * 100).toFixed(2)}%</p>
+                <div className="relative mt-auto h-24 border-t sm:h-32 xl:h-44" style={{ borderColor: "rgba(255,255,255,0.06)" }}>
                   <div
                     className="absolute bottom-0 left-0 right-0 rounded-sm border"
                     style={{
@@ -481,8 +481,8 @@ function TopContextSection({
               </div>
               <div className="flex h-full flex-1 flex-col">
                 <p className="mb-2 text-[11px] font-mono uppercase tracking-[0.12em]" style={{ color: "var(--foreground-muted)" }}>Shorts</p>
-                <p className="mb-4 text-[20px] font-mono font-bold tabular-nums" style={{ color: "var(--foreground)" }}>{(shortShare * 100).toFixed(2)}%</p>
-                <div className="relative mt-auto h-36 border-t xl:h-44" style={{ borderColor: "rgba(255,255,255,0.06)" }}>
+                <p className="mb-3 text-[18px] font-mono font-bold tabular-nums sm:text-[20px]" style={{ color: "var(--foreground)" }}>{(shortShare * 100).toFixed(2)}%</p>
+                <div className="relative mt-auto h-24 border-t sm:h-32 xl:h-44" style={{ borderColor: "rgba(255,255,255,0.06)" }}>
                   <div
                     className="absolute bottom-0 left-0 right-0 rounded-sm border"
                     style={{
@@ -504,14 +504,14 @@ function TopContextSection({
         )}
       </div>
 
-      <div className="flex flex-col border-b px-5 py-6 xl:min-h-[386px] xl:border-b-0 xl:border-r xl:px-7 xl:py-7" style={{ borderColor: B }}>
+      <div className="flex flex-col border-b px-4 py-5 sm:px-5 xl:min-h-[386px] xl:border-b-0 xl:border-r xl:px-7 xl:py-7" style={{ borderColor: B }}>
         <div className="flex flex-wrap items-start justify-between gap-5">
           <div>
             <p className="text-[11px] font-mono uppercase tracking-[0.18em] font-bold" style={{ color: "var(--foreground-dim)" }}>
               {selectedAsset} Market Context
             </p>
             <div className="mt-2 flex flex-wrap items-baseline gap-4">
-              <p className="text-[34px] font-mono font-bold leading-none tabular-nums" style={{ color: "var(--foreground)" }}>
+              <p className="text-[28px] font-mono font-bold leading-none tabular-nums sm:text-[34px]" style={{ color: "var(--foreground)" }}>
                 {money(price)}
               </p>
               <p className="text-[13px] font-mono font-bold tabular-nums" style={{ color: n(snapshot.changePct24h) != null && n(snapshot.changePct24h)! >= 0 ? "var(--bull)" : "var(--bear)" }}>
@@ -519,7 +519,7 @@ function TopContextSection({
               </p>
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-5">
+          <div className="grid grid-cols-2 gap-4 sm:gap-5">
             <DataCell label="Market Cap" value={money(snapshot.marketCap)} />
             <DataCell label="Volume" value={money(snapshot.turnover24h)} />
           </div>
@@ -541,7 +541,7 @@ function TopContextSection({
                   Past 5 sessions
                 </p>
               </div>
-              <div className="grid grid-cols-5 gap-px">
+              <div className="grid grid-cols-2 gap-px sm:grid-cols-5">
                 {etfHistory.map((row: any, index: number) => {
                   const flow = n(row.totalNetInflow);
                   return (
@@ -587,7 +587,7 @@ function TopContextSection({
         </div>
       </div>
 
-      <div className="flex flex-col px-5 py-6 xl:min-h-[386px] xl:px-7 xl:py-7">
+      <div className="flex flex-col px-4 py-5 sm:px-5 xl:min-h-[386px] xl:px-7 xl:py-7">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-4">
           <div>
             <p className="text-[11px] font-mono uppercase tracking-[0.18em] font-bold" style={{ color: "var(--foreground-dim)" }}>
@@ -602,7 +602,7 @@ function TopContextSection({
                   key={`chart-pair-${asset.asset}`}
                   type="button"
                   onClick={() => onSelectedAssetChange(asset.asset)}
-                  className="border-r px-3 py-2 text-[11px] font-mono font-bold uppercase tracking-[0.14em] last:border-r-0"
+                  className="border-r px-2.5 py-2 text-[10px] font-mono font-bold uppercase tracking-[0.12em] last:border-r-0 sm:px-3 sm:text-[11px] sm:tracking-[0.14em]"
                   style={{
                     borderColor: B,
                     color: active ? "var(--foreground)" : "var(--foreground-dim)",
@@ -615,7 +615,7 @@ function TopContextSection({
             })}
           </div>
         </div>
-        <div className="min-h-[282px] flex-1 overflow-hidden border-t pt-3" style={{ borderColor: "rgba(255,255,255,0.08)" }}>
+        <div className="min-h-[220px] flex-1 overflow-hidden border-t pt-3 sm:min-h-[260px] xl:min-h-[282px]" style={{ borderColor: "rgba(255,255,255,0.08)" }}>
           <PriceChart
             asset={selectedAsset}
             compact
@@ -801,7 +801,7 @@ export function DeskView({ desk, brief }: { desk: any; brief?: any }) {
             </div>
           ) : null}
           <div className="grid grid-cols-1 xl:grid-cols-[0.62fr_1.38fr]" style={{ borderColor: B }}>
-          <div className="relative min-h-[560px] overflow-hidden border-b px-6 py-8 xl:border-b-0 xl:border-r" style={{ borderColor: B }}>
+          <div className="relative min-h-[460px] overflow-hidden border-b px-5 py-7 sm:px-6 sm:py-8 xl:min-h-[560px] xl:border-b-0 xl:border-r" style={{ borderColor: B }}>
             <div className="absolute inset-0" style={{ background: "radial-gradient(circle at 26% 18%, rgba(0,145,255,0.24), transparent 28%), radial-gradient(circle at 76% 72%, rgba(214,132,31,0.18), transparent 34%), linear-gradient(145deg, #030404 0%, #080b0d 52%, #020202 100%)" }} />
             <div className="absolute inset-0 opacity-[0.16]" style={{ backgroundImage: "linear-gradient(rgba(255,255,255,0.08) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.08) 1px, transparent 1px)", backgroundSize: "42px 42px" }} />
             <div className="absolute inset-x-[-12%] bottom-[-12%] h-[46%] rotate-[-6deg] opacity-70">
@@ -869,7 +869,7 @@ export function DeskView({ desk, brief }: { desk: any; brief?: any }) {
                 </p>
               </div>
               <div>
-                <h2 className="max-w-md text-[34px] font-mono font-bold leading-tight md:text-[44px]" style={{ color: "var(--foreground)" }}>
+                <h2 className="max-w-md text-[26px] font-mono font-bold leading-tight sm:text-[34px] md:text-[44px]" style={{ color: "var(--foreground)" }}>
                   {readableHeadline}
                 </h2>
                 <p className="mt-5 max-w-md text-[12px] font-mono leading-relaxed" style={{ color: "var(--foreground-muted)" }}>
@@ -948,19 +948,22 @@ export function DeskView({ desk, brief }: { desk: any; brief?: any }) {
                     Watchlist Matrix
                   </p>
                   <div className="border" style={{ borderColor: B }}>
-                    <div className="grid grid-cols-[72px_1fr_auto] gap-3 border-b px-3 py-2 text-[10px] font-mono uppercase tracking-[0.12em]" style={{ borderColor: B, color: "var(--foreground-faint)" }}>
+                    <div className="hidden grid-cols-[72px_1fr_auto] gap-3 border-b px-3 py-2 text-[10px] font-mono uppercase tracking-[0.12em] sm:grid" style={{ borderColor: B, color: "var(--foreground-faint)" }}>
                       <span>Asset</span>
                       <span>Watch</span>
                       <span>Risk</span>
                     </div>
                     {(brief.trade_setup?.watchlist ?? []).slice(0, 6).map((token: any) => (
-                      <div key={`brief-watch-${token.symbol}`} className="grid grid-cols-[72px_1fr_auto] gap-3 border-b px-3 py-3 text-[11px] font-mono last:border-b-0" style={{ borderColor: "rgba(255,255,255,0.06)" }}>
-                        <span className="font-bold" style={{ color: "var(--foreground)" }}>{token.symbol}</span>
+                      <div key={`brief-watch-${token.symbol}`} className="grid grid-cols-1 gap-2 border-b px-3 py-3 text-[11px] font-mono last:border-b-0 sm:grid-cols-[72px_1fr_auto] sm:gap-3" style={{ borderColor: "rgba(255,255,255,0.06)" }}>
+                        <div className="flex items-baseline justify-between gap-3 sm:block">
+                          <span className="font-bold" style={{ color: "var(--foreground)" }}>{token.symbol}</span>
+                          <span className="max-w-[180px] truncate text-right sm:hidden" style={{ color: "var(--bear)" }}>{token.risk}</span>
+                        </div>
                         <span className="min-w-0" style={{ color: "var(--foreground-muted)" }}>
                           <span style={{ color: "var(--foreground)" }}>{token.watch_for}</span>
-                          <span className="mt-1 block truncate" style={{ color: "var(--foreground-faint)" }}>{token.reason}</span>
+                          <span className="mt-1 block whitespace-normal sm:truncate" style={{ color: "var(--foreground-faint)" }}>{token.reason}</span>
                         </span>
-                        <span className="max-w-[120px] truncate text-right" style={{ color: "var(--bear)" }}>{token.risk}</span>
+                        <span className="hidden max-w-[120px] truncate text-right sm:block" style={{ color: "var(--bear)" }}>{token.risk}</span>
                       </div>
                     ))}
                   </div>
@@ -1510,7 +1513,7 @@ function AnalysisView({ analysis }: { analysis: any }) {
             <p className="text-[10px] font-mono uppercase tracking-[0.14em]" style={{ color: "var(--foreground-faint)" }}>Daily net flow / assets</p>
           </div>
           <div className="border" style={{ borderColor: B }}>
-            <div className="grid grid-cols-[74px_1fr_118px_92px] gap-3 border-b px-3 py-2 text-[10px] font-mono uppercase tracking-[0.12em]" style={{ borderColor: B, color: "var(--foreground-faint)" }}>
+            <div className="hidden grid-cols-[74px_1fr_118px_92px] gap-3 border-b px-3 py-2 text-[10px] font-mono uppercase tracking-[0.12em] sm:grid" style={{ borderColor: B, color: "var(--foreground-faint)" }}>
               <span>Asset</span>
               <span>Daily Flow</span>
               <span>Assets</span>
@@ -1523,8 +1526,11 @@ function AnalysisView({ analysis }: { analysis: any }) {
               const flowWidth = Math.max(4, (Math.abs(latestFlow ?? 0) / maxFlow) * 100);
               const positive = latestFlow != null && latestFlow >= 0;
               return (
-                <div key={`flow-lens-${asset.asset}`} className="grid grid-cols-[74px_1fr_118px_92px] items-center gap-3 border-b px-3 py-3 text-[11px] font-mono last:border-b-0" style={{ borderColor: "rgba(255,255,255,0.06)" }}>
-                  <span className="font-bold" style={{ color: "var(--foreground)" }}>{asset.asset}</span>
+                <div key={`flow-lens-${asset.asset}`} className="grid grid-cols-1 gap-3 border-b px-3 py-3 text-[11px] font-mono last:border-b-0 sm:grid-cols-[74px_1fr_118px_92px] sm:items-center" style={{ borderColor: "rgba(255,255,255,0.06)" }}>
+                  <div className="flex items-baseline justify-between gap-3 sm:block">
+                    <span className="font-bold" style={{ color: "var(--foreground)" }}>{asset.asset}</span>
+                    <span className="text-[9px] uppercase tracking-[0.12em] sm:hidden" style={{ color: "var(--foreground-faint)" }}>ETF Flow</span>
+                  </div>
                   <div className="min-w-0">
                     <div className="mb-2 flex items-center justify-between gap-3">
                       <span className="truncate tabular-nums font-bold" style={{ color: latestFlow == null ? "var(--foreground)" : positive ? "var(--bull)" : "var(--bear)" }}>
@@ -1536,8 +1542,16 @@ function AnalysisView({ analysis }: { analysis: any }) {
                       <span className="block h-full" style={{ width: `${flowWidth}%`, background: latestFlow == null ? "rgba(255,255,255,0.18)" : positive ? "var(--bull)" : "var(--bear)" }} />
                     </div>
                   </div>
-                  <span className="tabular-nums" style={{ color: "var(--foreground-muted)" }}>{money(netAssets)}</span>
-                  <span className="tabular-nums font-bold" style={{ color: flowIntensity == null ? "var(--foreground-faint)" : flowIntensity >= 0 ? "var(--bull)" : "var(--bear)" }}>{pct(flowIntensity, 3)}</span>
+                  <div className="grid grid-cols-2 gap-3 sm:contents">
+                    <div className="sm:contents">
+                      <span className="block text-[9px] uppercase tracking-[0.12em] sm:hidden" style={{ color: "var(--foreground-faint)" }}>Assets</span>
+                      <span className="tabular-nums" style={{ color: "var(--foreground-muted)" }}>{money(netAssets)}</span>
+                    </div>
+                    <div className="sm:contents">
+                      <span className="block text-[9px] uppercase tracking-[0.12em] sm:hidden" style={{ color: "var(--foreground-faint)" }}>Flow/AUM</span>
+                      <span className="tabular-nums font-bold" style={{ color: flowIntensity == null ? "var(--foreground-faint)" : flowIntensity >= 0 ? "var(--bull)" : "var(--bear)" }}>{pct(flowIntensity, 3)}</span>
+                    </div>
+                  </div>
                 </div>
               );
             })}
@@ -1549,7 +1563,7 @@ function AnalysisView({ analysis }: { analysis: any }) {
             <p className="text-[11px] font-mono uppercase tracking-[0.16em] font-bold" style={{ color: "var(--foreground-dim)" }}>Index Constituents</p>
             <p className="text-[10px] font-mono uppercase tracking-[0.14em]" style={{ color: "var(--foreground-faint)" }}>Narrative weights</p>
           </div>
-          <div className="grid grid-cols-1 gap-px md:grid-cols-2">
+          <div className="grid grid-cols-1 gap-px sm:grid-cols-2">
             {indices.slice(0, 4).map((index: any) => (
               <div key={`index-constituents-${index.ticker}`} className="border px-4 py-4" style={{ borderColor: B }}>
                 <div className="flex items-baseline justify-between gap-4">
@@ -1560,7 +1574,7 @@ function AnalysisView({ analysis }: { analysis: any }) {
                   {(index.topConstituents ?? []).slice(0, 5).map((item: any, itemIndex: number) => {
                     const weight = n(item.weight) ?? 0;
                     return (
-                    <div key={`${index.ticker}-${item.symbol ?? itemIndex}`} className="grid grid-cols-[62px_1fr_auto] items-center gap-3 text-[11px] font-mono">
+                    <div key={`${index.ticker}-${item.symbol ?? itemIndex}`} className="grid grid-cols-[52px_1fr_auto] items-center gap-2 text-[11px] font-mono sm:grid-cols-[62px_1fr_auto] sm:gap-3">
                       <span className="truncate" style={{ color: "var(--foreground-muted)" }}>{item.symbol ?? "--"}</span>
                       <span className="h-1.5 border" style={{ borderColor: B, background: "rgba(255,255,255,0.04)" }}>
                         <span className="block h-full" style={{ width: `${Math.min(100, weight * 100)}%`, background: "var(--accent)" }} />
@@ -1582,7 +1596,7 @@ function AnalysisView({ analysis }: { analysis: any }) {
             <p className="text-[10px] font-mono uppercase tracking-[0.14em]" style={{ color: "var(--foreground-faint)" }}>Actual vs forecast</p>
           </div>
           <div className="border" style={{ borderColor: B }}>
-            <div className="grid grid-cols-[86px_1fr_92px_auto] gap-3 border-b px-3 py-2 text-[10px] font-mono uppercase tracking-[0.12em]" style={{ borderColor: B, color: "var(--foreground-faint)" }}>
+            <div className="hidden grid-cols-[86px_1fr_92px_auto] gap-3 border-b px-3 py-2 text-[10px] font-mono uppercase tracking-[0.12em] sm:grid" style={{ borderColor: B, color: "var(--foreground-faint)" }}>
               <span>Date</span>
               <span>Event</span>
               <span>Magnitude</span>
@@ -1592,13 +1606,16 @@ function AnalysisView({ analysis }: { analysis: any }) {
               const surprise = n(event.surprise);
               const surpriseWidth = Math.max(4, ((Math.abs(surprise ?? 0) / maxSurprise) * 100));
               return (
-                <div key={`macro-surprise-${event.event ?? index}`} className="grid grid-cols-[86px_1fr_92px_auto] items-center gap-3 border-b px-3 py-3 text-[11px] font-mono last:border-b-0" style={{ borderColor: "rgba(255,255,255,0.06)" }}>
-                  <span className="tabular-nums" style={{ color: "var(--foreground-muted)" }}>{dateLabel(event.date)}</span>
-                  <span className="truncate" style={{ color: "var(--foreground)" }}>{event.event} <span style={{ color: "var(--foreground-faint)" }}>({macroValue(event.actual)})</span></span>
+                <div key={`macro-surprise-${event.event ?? index}`} className="grid grid-cols-1 gap-3 border-b px-3 py-3 text-[11px] font-mono last:border-b-0 sm:grid-cols-[86px_1fr_92px_auto] sm:items-center" style={{ borderColor: "rgba(255,255,255,0.06)" }}>
+                  <div className="flex items-baseline justify-between gap-3 sm:block">
+                    <span className="tabular-nums" style={{ color: "var(--foreground-muted)" }}>{dateLabel(event.date)}</span>
+                    <span className="tabular-nums font-bold sm:hidden" style={{ color: surprise == null ? "var(--foreground-faint)" : surprise >= 0 ? "var(--bull)" : "var(--bear)" }}>{pct(surprise)}</span>
+                  </div>
+                  <span className="whitespace-normal sm:truncate" style={{ color: "var(--foreground)" }}>{event.event} <span style={{ color: "var(--foreground-faint)" }}>({macroValue(event.actual)})</span></span>
                   <span className="h-2 border" style={{ borderColor: B, background: "rgba(255,255,255,0.04)" }}>
                     <span className="block h-full" style={{ width: `${surpriseWidth}%`, background: surprise == null ? "rgba(255,255,255,0.16)" : surprise >= 0 ? "var(--bull)" : "var(--bear)" }} />
                   </span>
-                  <span className="tabular-nums font-bold" style={{ color: surprise == null ? "var(--foreground-faint)" : surprise >= 0 ? "var(--bull)" : "var(--bear)" }}>{pct(surprise)}</span>
+                  <span className="hidden tabular-nums font-bold sm:block" style={{ color: surprise == null ? "var(--foreground-faint)" : surprise >= 0 ? "var(--bull)" : "var(--bear)" }}>{pct(surprise)}</span>
                 </div>
               );
             })}
@@ -1636,15 +1653,17 @@ function WatchView({ watchlist, analysis }: { watchlist: any; analysis?: any }) 
         {stocks.map((stock: any) => {
           const turnover = n(stock.turnover) ?? 0;
           return (
-          <div key={stock.ticker} className="border-b px-5 py-4" style={{ borderColor: "rgba(255,255,255,0.06)" }}>
-            <div className="grid grid-cols-[1fr_auto_auto_auto] items-center gap-4">
-            <div>
+          <div key={stock.ticker} className="border-b px-4 py-4 sm:px-5" style={{ borderColor: "rgba(255,255,255,0.06)" }}>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_auto_auto_auto] sm:items-center sm:gap-4">
+            <div className="min-w-0">
               <p className="text-[12px] font-mono font-bold" style={{ color: "var(--foreground)" }}>{stock.ticker}</p>
-              <p className="text-[10px] font-mono" style={{ color: "var(--foreground-faint)" }}>{stock.sector ?? stock.name}</p>
+              <p className="truncate text-[10px] font-mono" style={{ color: "var(--foreground-faint)" }}>{stock.sector ?? stock.name}</p>
             </div>
-            <span className="text-[12px] font-mono font-bold tabular-nums" style={{ color: "var(--foreground)" }}>{money(stock.price)}</span>
-            <span className="text-[11px] font-mono tabular-nums" style={{ color: "var(--foreground-muted)" }}>{money(stock.turnover)}</span>
-            <span className="text-[11px] font-mono tabular-nums" style={{ color: "var(--foreground-muted)" }}>P/B {compact(stock.pb)}</span>
+            <div className="grid grid-cols-3 gap-3 sm:contents">
+              <span className="text-[12px] font-mono font-bold tabular-nums" style={{ color: "var(--foreground)" }}>{money(stock.price)}</span>
+              <span className="text-[11px] font-mono tabular-nums" style={{ color: "var(--foreground-muted)" }}>{money(stock.turnover)}</span>
+              <span className="text-[11px] font-mono tabular-nums" style={{ color: "var(--foreground-muted)" }}>P/B {compact(stock.pb)}</span>
+            </div>
           </div>
             <div className="mt-3 h-1.5 border" style={{ borderColor: B, background: "rgba(255,255,255,0.04)" }}>
               <div className="h-full" style={{ width: `${Math.max(3, (turnover / maxStockTurnover) * 100)}%`, background: "var(--accent)" }} />
@@ -1674,19 +1693,21 @@ function WatchView({ watchlist, analysis }: { watchlist: any; analysis?: any }) 
         {treasuries.map((company: any) => {
           const holding = n(company.btcHolding) ?? 0;
           return (
-          <div key={company.ticker} className="border-b px-5 py-4" style={{ borderColor: "rgba(255,255,255,0.06)" }}>
-            <div className="grid grid-cols-[1fr_auto_auto] items-center gap-4">
-            <div>
+          <div key={company.ticker} className="border-b px-4 py-4 sm:px-5" style={{ borderColor: "rgba(255,255,255,0.06)" }}>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_auto_auto] sm:items-center sm:gap-4">
+            <div className="min-w-0">
               <p className="text-[12px] font-mono font-bold" style={{ color: "var(--foreground)" }}>{company.ticker}</p>
-              <p className="text-[10px] font-mono" style={{ color: "var(--foreground-faint)" }}>{company.name}</p>
+              <p className="truncate text-[10px] font-mono" style={{ color: "var(--foreground-faint)" }}>{company.name}</p>
             </div>
-            <span className="text-[12px] font-mono font-bold tabular-nums" style={{ color: "var(--foreground)" }}>{compact(company.btcHolding)} BTC</span>
-            <span className="text-[11px] font-mono tabular-nums" style={{ color: "var(--foreground-muted)" }}>{dateLabel(company.latestPurchaseDate)}</span>
+            <div className="flex items-baseline justify-between gap-3 sm:contents">
+              <span className="text-[12px] font-mono font-bold tabular-nums" style={{ color: "var(--foreground)" }}>{compact(company.btcHolding)} BTC</span>
+              <span className="text-[11px] font-mono tabular-nums" style={{ color: "var(--foreground-muted)" }}>{dateLabel(company.latestPurchaseDate)}</span>
+            </div>
             </div>
             <div className="mt-3 h-2 border" style={{ borderColor: B, background: "rgba(255,255,255,0.04)" }}>
               <div className="h-full" style={{ width: `${Math.max(3, (holding / maxTreasuryHolding) * 100)}%`, background: "rgba(247,147,26,0.78)" }} />
             </div>
-            <div className="mt-3 grid grid-cols-3 gap-4">
+            <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-4">
               <DataCell label="Acquired" value={`${compact(company.btcAcquired)} BTC`} />
               <DataCell label="Avg Cost" value={money(company.avgBtcCost)} />
               <DataCell label="Cost" value={money(company.acquisitionCost)} />
