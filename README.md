@@ -93,44 +93,6 @@ In the current website, `/api/terminal-data` reads the prepared terminal payload
 - `lib/`  
   Formatting and shared helpers.
 
-## Local Development
-
-Install dependencies:
-
-```bash
-npm install
-```
-
-Run locally:
-
-```bash
-npm run dev
-```
-
-Build:
-
-```bash
-npm run build
-```
-
-## Environment Variables
-
-The website needs read access to the terminal payload store:
-
-```env
-SUPABASE_URL=https://your-project.supabase.co
-SUPABASE_ANON_KEY=your-anon-key
-```
-
-The route also accepts:
-
-```env
-NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
-```
-
-Provider API keys, xAI keys, and Supabase service-role publishing credentials belong to the backend environment.
-
 ## Demo Link
 
 Demo URL: `TBD`
