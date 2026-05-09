@@ -279,7 +279,7 @@ function tokenAmount(value: unknown) {
 
 const DEFAULT_TAPE_ASSETS = ["BTC", "ETH", "XRP", "SOL", "LINK", "AVAX", "SUI", "DOGE"];
 const INDEX_META: Record<string, { label: string; description: string }> = {
-  ssiMAG7: { label: "Crypto Majors", description: "Large-cap benchmark basket" },
+  ssiMAG7: { label: "Tech Risk Proxy", description: "Mega-cap tech risk appetite basket" },
   ssiLayer1: { label: "Layer 1s", description: "Base-chain performance basket" },
   ssiAI: { label: "AI Tokens", description: "AI and compute narrative basket" },
   ssiMeme: { label: "Meme Tokens", description: "Speculative retail beta basket" },
