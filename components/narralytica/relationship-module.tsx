@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import type { MouseEvent } from "react";
 
 interface Candle {
   time: number;
@@ -477,12 +478,13 @@ function EventImpactMap({
   baseAsset: string;
   baseSeries?: SeriesData;
 }) {
-  const [eventWindow, setEventWindow] = useState<Lookback>("7D");
+  const [eventWindow, setEventWindow] = useState<Lookback>("24H");
   const [eventSeries, setEventSeries] = useState<SeriesData | null>(null);
   const [items, setItems] = useState<NewsEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingSeries, setLoadingSeries] = useState(true);
   const [activeId, setActiveId] = useState<string | null>(null);
+  const [hoverMarker, setHoverMarker] = useState<any | null>(null);
   const [width, setWidth] = useState(900);
   const ref = useRef<HTMLDivElement | null>(null);
   const height = 340;
@@ -599,6 +601,17 @@ function EventImpactMap({
 
   const active = markers.find((marker) => marker.item.id === activeId) ?? markers[0] ?? null;
 
+  function handleEventChartHover(event: MouseEvent<SVGRectElement>) {
+    if (!markers.length) return;
+    const bounds = event.currentTarget.getBoundingClientRect();
+    const x = ((event.clientX - bounds.left) / Math.max(1, bounds.width)) * width;
+    const nearest = markers.reduce((closest, marker) => {
+      return Math.abs(marker.x - x) < Math.abs(closest.x - x) ? marker : closest;
+    }, markers[0]);
+    setHoverMarker(nearest);
+    setActiveId(nearest.item.id);
+  }
+
   return (
     <div className="border-t" style={{ borderColor: B }}>
       <div className="grid grid-cols-1 xl:grid-cols-[1fr_360px]" style={{ background: B }}>
@@ -609,7 +622,7 @@ function EventImpactMap({
             </p>
             <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
               <p className="text-[11px] font-mono uppercase tracking-[0.18em]" style={{ color: "var(--foreground-faint)" }}>
-                SoSoValue headlines pinned to the {baseAsset} movement path / default 7D
+                SoSoValue headlines pinned to the {baseAsset} movement path / default 24H
               </p>
               <div className="flex flex-wrap gap-2">
                 {LOOKBACKS.map((item) => (
@@ -664,6 +677,16 @@ function EventImpactMap({
                 ))}
                 <path d={chart.area} fill="url(#event-impact-fill)" />
                 <path d={chart.line} fill="none" stroke="var(--foreground)" strokeWidth={1.5} vectorEffect="non-scaling-stroke" />
+                <rect
+                  x={PAD.left}
+                  y={PAD.top}
+                  width={width - PAD.left - PAD.right}
+                  height={height - PAD.top - PAD.bottom}
+                  fill="transparent"
+                  onMouseMove={handleEventChartHover}
+                  onMouseLeave={() => setHoverMarker(null)}
+                  style={{ cursor: "crosshair" }}
+                />
 
                 {markers.map((marker, index) => {
                   const isActive = active?.item.id === marker.item.id;
@@ -671,7 +694,11 @@ function EventImpactMap({
                   return (
                     <g
                       key={`${marker.item.id}-${index}`}
-                      onMouseEnter={() => setActiveId(marker.item.id)}
+                      onMouseEnter={() => {
+                        setActiveId(marker.item.id);
+                        setHoverMarker(marker);
+                      }}
+                      onMouseLeave={() => setHoverMarker(null)}
                       style={{ cursor: "pointer" }}
                     >
                       <line
@@ -702,6 +729,25 @@ function EventImpactMap({
                 </text>
               </svg>
             )}
+            {hoverMarker ? (
+              <div
+                className="pointer-events-none absolute max-w-[280px] border px-3 py-2"
+                style={{
+                  left: `min(calc(100% - 300px), max(18px, ${(hoverMarker.x / width) * 100}%))`,
+                  top: `max(18px, ${hoverMarker.y + 18}px)`,
+                  borderColor: "rgba(255,255,255,0.18)",
+                  background: "rgba(8,8,8,0.94)",
+                  color: "var(--foreground)",
+                }}
+              >
+                <p className="text-[9px] font-mono uppercase tracking-[0.14em]" style={{ color: "var(--foreground-faint)" }}>
+                  {new Date(hoverMarker.item.timestamp).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: false })}
+                </p>
+                <p className="mt-1 line-clamp-2 text-[11px] font-mono font-bold leading-snug">
+                  {hoverMarker.item.title}
+                </p>
+              </div>
+            ) : null}
           </div>
         </div>
 
@@ -906,8 +952,6 @@ export function RelationshipModule({ asset }: { asset?: string }) {
         <StatBlock label="Largest Spread" value={divergence ? divergence.asset : "--"} meta={divergence ? `${fmtPct(divergence.spread)} vs ${baseAsset}` : "waiting for data"} tone={divergence ? colorFor(divergence.spread) : undefined} />
         <StatBlock label="Market Mode" value={marketMode} meta={`${confirmingCount}/${peerRows.length || 0} confirming`} tone={marketMode === "aligned" ? GREEN : "var(--foreground)"} />
       </div>
-
-      <AnalysisToolsDeck payload={analysisPayload} />
 
       <div className="grid grid-cols-1 xl:grid-cols-[1fr_360px]" style={{ background: B }}>
         <div style={{ background: "var(--bg)" }}>

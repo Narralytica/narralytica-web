@@ -78,7 +78,7 @@ function fmtTime(ts: number) {
 
 function fmtPrice(p: number) {
   return p >= 1000
-    ? `$${p.toLocaleString("en-US", { maximumFractionDigits: 0 })}`
+    ? `$${Math.round(p)}`
     : `$${p.toFixed(2)}`;
 }
 
@@ -205,7 +205,7 @@ export function PriceChart({
 
   const compactPadRight = 14;
   const compactPadBottom = 0;
-  const chartH = compact ? compactHeight : width > 0 && width < 640 ? MOBILE_CHART_H : CHART_H;
+  const chartH = compact ? (width > 0 && width < 640 ? Math.min(compactHeight, 180) : compactHeight) : width > 0 && width < 640 ? MOBILE_CHART_H : CHART_H;
   const rightPad = compact ? compactPadRight : PAD_RIGHT;
   const bottomPad = compact ? compactPadBottom : PAD_BOT;
   const drawW = Math.max(0, width - PAD_LEFT - rightPad);

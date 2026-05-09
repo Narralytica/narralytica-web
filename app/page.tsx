@@ -33,7 +33,7 @@ export default function Page() {
   }, []);
 
   return (
-    <div className="min-h-screen w-full min-w-0 overflow-x-hidden" style={{ background: "var(--background)" }}>
+    <div className="narralytica-shell min-h-screen w-full min-w-0 overflow-x-hidden" style={{ background: "var(--background)" }}>
       <HeaderBar activeView={activeView} onViewChange={setActiveView} />
 
       {activeView === "decision" ? (

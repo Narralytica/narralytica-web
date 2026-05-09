@@ -13,8 +13,9 @@ export async function GET(request: Request) {
   const upstreamUrl = new URL(HOT_NEWS_URL);
   upstreamUrl.searchParams.set("start_time", String(startTime));
   upstreamUrl.searchParams.set("end_time", String(endTime));
-  upstreamUrl.searchParams.set("pageNum", String(pageNum));
-  upstreamUrl.searchParams.set("pageSize", String(pageSize));
+  upstreamUrl.searchParams.set("page", String(pageNum));
+  upstreamUrl.searchParams.set("page_size", String(pageSize));
+  upstreamUrl.searchParams.set("language", "en");
 
   try {
     const response = await fetch(upstreamUrl.toString(), {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import { formatCurrencyCompact } from "@/lib/format";
 import { PriceChart } from "@/components/narralytica/price-chart";
@@ -44,6 +44,14 @@ function money(value: unknown) {
   return formatCurrencyCompact(parsed);
 }
 
+function priceMoney(value: unknown) {
+  const parsed = n(value);
+  if (parsed == null) return "--";
+  if (Math.abs(parsed) >= 1000) return `$${Math.round(parsed).toString()}`;
+  if (Math.abs(parsed) >= 1) return `$${parsed.toFixed(2)}`;
+  return `$${parsed.toFixed(4)}`;
+}
+
 function compact(value: unknown) {
   const parsed = n(value);
   if (parsed == null) return "--";
@@ -55,6 +63,28 @@ function dateLabel(value: string | null | undefined) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return value;
   return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+}
+
+function textFromHtml(value: unknown) {
+  if (value == null) return "";
+  return String(value)
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<\/p>/gi, "\n\n")
+    .replace(/<\/li>/gi, "\n")
+    .replace(/<[^>]+>/g, "")
+    .replace(/&amp;/g, "&")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&nbsp;/g, " ")
+    .replace(/[ \t]+\n/g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
+function newsSourceLink(item: any) {
+  return item?.sourceLink ?? item?.source_link ?? item?.originalLink ?? item?.original_link ?? "";
 }
 
 function Sparkline({ rows, field }: { rows: Record<string, unknown>[]; field: string }) {
@@ -207,10 +237,10 @@ function DataCell({ label, value, tone }: { label: string; value: string; tone?:
   const color = tone === "up" ? "var(--bull)" : tone === "down" ? "var(--bear)" : tone === "muted" ? "var(--foreground-faint)" : "var(--foreground)";
   return (
     <div className="min-w-0">
-      <p className="text-[10px] font-mono uppercase tracking-[0.14em]" style={{ color: "var(--foreground-faint)" }}>
+      <p className="text-[9px] font-mono uppercase tracking-[0.12em] sm:text-[10px] sm:tracking-[0.14em]" style={{ color: "var(--foreground-faint)" }}>
         {label}
       </p>
-      <p className="mt-1 truncate text-[13px] font-mono font-bold tabular-nums" style={{ color }}>
+      <p className="mt-1 truncate text-[12px] font-mono font-bold tabular-nums sm:text-[13px]" style={{ color }}>
         {value}
       </p>
     </div>
@@ -257,14 +287,9 @@ const INDEX_META: Record<string, { label: string; description: string }> = {
   ssiRWA: { label: "Real-World Assets", description: "Tokenized asset narrative basket" },
 };
 
-function SectionBlock({ id, label, children }: { id: string; label: string; children: ReactNode }) {
+function SectionBlock({ id, children }: { id: string; label: string; children: ReactNode }) {
   return (
     <section id={id} className="border-b scroll-mt-16" style={{ borderColor: B }}>
-      <div className="border-b px-4 py-4 sm:px-6" style={{ borderColor: B }}>
-        <p className="text-[12px] font-mono uppercase tracking-[0.22em] font-bold" style={{ color: "var(--foreground)" }}>
-          {label}
-        </p>
-      </div>
       {children}
     </section>
   );
@@ -292,35 +317,30 @@ function assetToTapeItem(asset: any): TapeItem {
 function TapeCard({ item }: { item: TapeItem }) {
   const change = n(item.changePct24h);
   return (
-    <div className="min-w-[210px] border-r px-4 py-3 md:min-w-[232px]" style={{ borderColor: B }}>
+    <div className="min-w-[168px] border-r px-3 py-2.5 md:min-w-[232px] md:px-4 md:py-3" style={{ borderColor: B }}>
       <div className="flex items-baseline gap-3">
-        <span className="truncate text-[12px] font-mono font-bold uppercase tracking-[0.18em]" style={{ color: "var(--foreground)" }}>
+        <span className="truncate text-[10px] font-mono font-bold uppercase tracking-[0.16em] md:text-[12px] md:tracking-[0.18em]" style={{ color: "var(--foreground)" }}>
           {item.symbol}
         </span>
-        <span className="shrink-0 text-[11px] font-mono tabular-nums" style={{ color: change == null ? "var(--foreground-faint)" : change >= 0 ? "var(--bull)" : "var(--bear)" }}>
+        <span className="shrink-0 text-[10px] font-mono tabular-nums md:text-[11px]" style={{ color: change == null ? "var(--foreground-faint)" : change >= 0 ? "var(--bull)" : "var(--bear)" }}>
           {change == null ? "--" : pct(change)}
         </span>
       </div>
-      <p className="mt-2 text-[16px] font-mono font-bold tabular-nums" style={{ color: "var(--foreground)" }}>
-        {money(item.price)}
+      <p className="mt-1.5 text-[13px] font-mono font-bold tabular-nums md:mt-2 md:text-[16px]" style={{ color: "var(--foreground)" }}>
+        {priceMoney(item.price)}
       </p>
-      <p className="mt-1 truncate text-[10px] font-mono" style={{ color: "var(--foreground-faint)" }}>
+      <p className="mt-1 truncate text-[9px] font-mono md:text-[10px]" style={{ color: "var(--foreground-faint)" }}>
         {item.sublabel ?? "Vol"} {money(item.volume)}
       </p>
     </div>
   );
 }
 
-function TapeLane({ label, items, reverse = false }: { label: string; items: TapeItem[]; reverse?: boolean }) {
+function TapeLane({ items, reverse = false }: { items: TapeItem[]; reverse?: boolean }) {
   if (items.length === 0) return null;
   const tickerItems = [...items, ...items];
   return (
-    <div className="grid grid-cols-[96px_1fr] border-b last:border-b-0" style={{ borderColor: B }}>
-      <div className="flex items-center border-r px-4" style={{ borderColor: B, background: "var(--surface)" }}>
-        <span className="text-[10px] font-mono font-bold uppercase tracking-[0.18em]" style={{ color: "var(--foreground-faint)" }}>
-          {label}
-        </span>
-      </div>
+    <div className="border-b last:border-b-0" style={{ borderColor: B }}>
       <div className="overflow-hidden">
         <div
           className="flex w-max"
@@ -329,7 +349,7 @@ function TapeLane({ label, items, reverse = false }: { label: string; items: Tap
           }}
         >
           {tickerItems.map((item, index) => (
-            <TapeCard key={`${label}-${item.symbol}-${index}`} item={item} />
+            <TapeCard key={`ticker-${item.symbol}-${index}`} item={item} />
           ))}
         </div>
       </div>
@@ -355,7 +375,7 @@ function AssetTape({ assets }: { assets: any[] }) {
           to { transform: translate3d(0, 0, 0); }
         }
       `}</style>
-      <TapeLane label="Crypto" items={majorItems.length > 0 ? majorItems : assets.slice(0, 8).map(assetToTapeItem)} />
+      <TapeLane items={majorItems.length > 0 ? majorItems : assets.slice(0, 8).map(assetToTapeItem)} />
     </div>
   );
 }
@@ -449,22 +469,38 @@ function TopContextSection({
 
   return (
     <div className="grid grid-cols-1 border-b xl:grid-cols-[240px_minmax(420px,0.82fr)_minmax(460px,0.9fr)]" style={{ borderColor: B }}>
-      <div className="flex border-b px-4 py-5 sm:px-5 xl:min-h-[386px] xl:flex-col xl:justify-between xl:border-b-0 xl:border-r xl:px-5 xl:py-7" style={{ borderColor: B }}>
+      <div className="flex border-b px-3 py-3 sm:px-5 sm:py-5 xl:min-h-[386px] xl:flex-col xl:justify-between xl:border-b-0 xl:border-r xl:px-5 xl:py-7" style={{ borderColor: B }}>
         {longShare != null && shortShare != null ? (
-          <div className="flex w-full flex-col gap-6">
+          <div className="flex w-full flex-col gap-3 sm:gap-5 xl:gap-6">
             <div>
-              <p className="text-[11px] font-mono uppercase tracking-[0.14em] font-bold" style={{ color: "var(--foreground)" }}>
+              <p className="text-[10px] font-mono uppercase tracking-[0.13em] font-bold sm:text-[11px] sm:tracking-[0.14em]" style={{ color: "var(--foreground)" }}>
                 Longs vs Shorts
               </p>
-              <p className="mt-2 flex items-center gap-2 text-[10px] font-mono uppercase tracking-[0.16em]" style={{ color: "var(--foreground-faint)" }}>
+              <p className="mt-1.5 flex items-center gap-2 text-[9px] font-mono uppercase tracking-[0.14em] sm:mt-2 sm:text-[10px] sm:tracking-[0.16em]" style={{ color: "var(--foreground-faint)" }}>
                 <span>Binance</span>
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" className="sm:h-3 sm:w-3">
                   <path d="M12 2.75L15.05 5.8L12 8.85L8.95 5.8L12 2.75ZM5.8 8.95L8.85 12L5.8 15.05L2.75 12L5.8 8.95ZM18.2 8.95L21.25 12L18.2 15.05L15.15 12L18.2 8.95ZM12 15.15L15.05 18.2L12 21.25L8.95 18.2L12 15.15ZM12 9.15L14.85 12L12 14.85L9.15 12L12 9.15Z" />
                 </svg>
                 <span>Futures</span>
               </p>
             </div>
-            <div className="flex h-44 items-end gap-4 sm:h-52 xl:h-64">
+            <div className="xl:hidden">
+              <div className="mb-2 flex items-baseline justify-between gap-4">
+                <div>
+                  <p className="text-[9px] font-mono uppercase tracking-[0.12em]" style={{ color: "var(--foreground-faint)" }}>Long</p>
+                  <p className="mt-1 text-[16px] font-mono font-bold tabular-nums" style={{ color: "var(--foreground)" }}>{(longShare * 100).toFixed(2)}%</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-[9px] font-mono uppercase tracking-[0.12em]" style={{ color: "var(--foreground-faint)" }}>Short</p>
+                  <p className="mt-1 text-[16px] font-mono font-bold tabular-nums" style={{ color: "var(--foreground)" }}>{(shortShare * 100).toFixed(2)}%</p>
+                </div>
+              </div>
+              <div className="flex h-3 overflow-hidden border" style={{ borderColor: B }}>
+                <div style={{ width: `${Math.max(2, longShare * 100)}%`, background: "var(--bull)" }} />
+                <div style={{ width: `${Math.max(2, shortShare * 100)}%`, background: "var(--bear)" }} />
+              </div>
+            </div>
+            <div className="hidden h-44 items-end gap-4 sm:h-52 xl:flex xl:h-64">
               <div className="flex h-full flex-1 flex-col">
                 <p className="mb-2 text-[11px] font-mono uppercase tracking-[0.12em]" style={{ color: "var(--foreground-muted)" }}>Long</p>
                 <p className="mb-3 text-[18px] font-mono font-bold tabular-nums sm:text-[20px]" style={{ color: "var(--foreground)" }}>{(longShare * 100).toFixed(2)}%</p>
@@ -504,40 +540,40 @@ function TopContextSection({
         )}
       </div>
 
-      <div className="flex flex-col border-b px-4 py-5 sm:px-5 xl:min-h-[386px] xl:border-b-0 xl:border-r xl:px-7 xl:py-7" style={{ borderColor: B }}>
-        <div className="flex flex-wrap items-start justify-between gap-5">
+      <div className="flex flex-col border-b px-3 py-3 sm:px-5 sm:py-5 xl:min-h-[386px] xl:border-b-0 xl:border-r xl:px-7 xl:py-7" style={{ borderColor: B }}>
+        <div className="flex flex-wrap items-start justify-between gap-3 sm:gap-5">
           <div>
-            <p className="text-[11px] font-mono uppercase tracking-[0.18em] font-bold" style={{ color: "var(--foreground-dim)" }}>
+            <p className="text-[10px] font-mono uppercase tracking-[0.14em] font-bold sm:text-[11px] sm:tracking-[0.18em]" style={{ color: "var(--foreground-dim)" }}>
               {selectedAsset} Market Context
             </p>
-            <div className="mt-2 flex flex-wrap items-baseline gap-4">
-              <p className="text-[28px] font-mono font-bold leading-none tabular-nums sm:text-[34px]" style={{ color: "var(--foreground)" }}>
-                {money(price)}
+            <div className="mt-1.5 flex flex-wrap items-baseline gap-3 sm:mt-2 sm:gap-4">
+              <p className="text-[22px] font-mono font-bold leading-none tabular-nums sm:text-[34px]" style={{ color: "var(--foreground)" }}>
+                {priceMoney(price)}
               </p>
-              <p className="text-[13px] font-mono font-bold tabular-nums" style={{ color: n(snapshot.changePct24h) != null && n(snapshot.changePct24h)! >= 0 ? "var(--bull)" : "var(--bear)" }}>
+              <p className="text-[11px] font-mono font-bold tabular-nums sm:text-[13px]" style={{ color: n(snapshot.changePct24h) != null && n(snapshot.changePct24h)! >= 0 ? "var(--bull)" : "var(--bear)" }}>
                 {pct(snapshot.changePct24h)}
               </p>
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-4 sm:gap-5">
+          <div className="grid grid-cols-2 gap-3 sm:gap-5">
             <DataCell label="Market Cap" value={money(snapshot.marketCap)} />
             <DataCell label="Volume" value={money(snapshot.turnover24h)} />
           </div>
         </div>
 
-        <div className="mt-auto border-t pt-5" style={{ borderColor: "rgba(255,255,255,0.08)" }}>
+        <div className="mt-3 border-t pt-3 sm:mt-auto sm:pt-5" style={{ borderColor: "rgba(255,255,255,0.08)" }}>
           {etfHistory.length > 0 ? (
             <>
-              <div className="mb-4 flex items-baseline justify-between gap-4">
+              <div className="mb-3 flex items-baseline justify-between gap-3 sm:mb-4 sm:gap-4">
                 <div>
-                  <p className="text-[11px] font-mono uppercase tracking-[0.16em] font-bold" style={{ color: "var(--foreground-dim)" }}>
+                  <p className="text-[10px] font-mono uppercase tracking-[0.14em] font-bold sm:text-[11px] sm:tracking-[0.16em]" style={{ color: "var(--foreground-dim)" }}>
                     ETF Net Flow
                   </p>
-                  <p className="mt-1 text-[24px] font-mono font-bold tabular-nums" style={{ color: latestFlow != null && latestFlow < 0 ? "var(--bear)" : "var(--bull)" }}>
+                  <p className="mt-1 text-[18px] font-mono font-bold tabular-nums sm:text-[24px]" style={{ color: latestFlow != null && latestFlow < 0 ? "var(--bear)" : "var(--bull)" }}>
                     {latestFlow != null && latestFlow > 0 ? "+" : ""}{money(latestFlow)}
                   </p>
                 </div>
-                <p className="text-[10px] font-mono uppercase tracking-[0.14em]" style={{ color: "var(--foreground-faint)" }}>
+                <p className="text-[9px] font-mono uppercase tracking-[0.12em] sm:text-[10px] sm:tracking-[0.14em]" style={{ color: "var(--foreground-faint)" }}>
                   Past 5 sessions
                 </p>
               </div>
@@ -545,9 +581,9 @@ function TopContextSection({
                 {etfHistory.map((row: any, index: number) => {
                   const flow = n(row.totalNetInflow);
                   return (
-                    <div key={`${selectedAsset}-top-etf-${row.date ?? "session"}-${index}`} className="border px-2 py-3" style={{ borderColor: B, background: flow == null ? "transparent" : flow >= 0 ? "rgba(34,197,94,0.09)" : "rgba(239,68,68,0.09)" }}>
-                      <p className="text-[10px] font-mono" style={{ color: "var(--foreground-faint)" }}>{dateLabel(row.date)}</p>
-                      <p className="mt-2 truncate text-[11px] font-mono font-bold tabular-nums" style={{ color: flow == null ? "var(--foreground)" : flow >= 0 ? "var(--bull)" : "var(--bear)" }}>
+                    <div key={`${selectedAsset}-top-etf-${row.date ?? "session"}-${index}`} className="border px-2 py-2 sm:py-3" style={{ borderColor: B, background: flow == null ? "transparent" : flow >= 0 ? "rgba(34,197,94,0.09)" : "rgba(239,68,68,0.09)" }}>
+                      <p className="text-[9px] font-mono sm:text-[10px]" style={{ color: "var(--foreground-faint)" }}>{dateLabel(row.date)}</p>
+                      <p className="mt-1 truncate text-[10px] font-mono font-bold tabular-nums sm:mt-2 sm:text-[11px]" style={{ color: flow == null ? "var(--foreground)" : flow >= 0 ? "var(--bull)" : "var(--bear)" }}>
                         {money(flow)}
                       </p>
                     </div>
@@ -587,10 +623,10 @@ function TopContextSection({
         </div>
       </div>
 
-      <div className="flex flex-col px-4 py-5 sm:px-5 xl:min-h-[386px] xl:px-7 xl:py-7">
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-4">
+      <div className="flex flex-col px-3 py-3 sm:px-5 sm:py-5 xl:min-h-[386px] xl:px-7 xl:py-7">
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-3 sm:mb-4 sm:gap-4">
           <div>
-            <p className="text-[11px] font-mono uppercase tracking-[0.18em] font-bold" style={{ color: "var(--foreground-dim)" }}>
+            <p className="text-[10px] font-mono uppercase tracking-[0.14em] font-bold sm:text-[11px] sm:tracking-[0.18em]" style={{ color: "var(--foreground-dim)" }}>
               Price Context
             </p>
           </div>
@@ -602,7 +638,7 @@ function TopContextSection({
                   key={`chart-pair-${asset.asset}`}
                   type="button"
                   onClick={() => onSelectedAssetChange(asset.asset)}
-                  className="border-r px-2.5 py-2 text-[10px] font-mono font-bold uppercase tracking-[0.12em] last:border-r-0 sm:px-3 sm:text-[11px] sm:tracking-[0.14em]"
+                  className="border-r px-2 py-1.5 text-[9px] font-mono font-bold uppercase tracking-[0.1em] last:border-r-0 sm:px-3 sm:py-2 sm:text-[11px] sm:tracking-[0.14em]"
                   style={{
                     borderColor: B,
                     color: active ? "var(--foreground)" : "var(--foreground-dim)",
@@ -615,7 +651,7 @@ function TopContextSection({
             })}
           </div>
         </div>
-        <div className="min-h-[220px] flex-1 overflow-hidden border-t pt-3 sm:min-h-[260px] xl:min-h-[282px]" style={{ borderColor: "rgba(255,255,255,0.08)" }}>
+        <div className="min-h-[160px] flex-1 overflow-hidden border-t pt-2 sm:min-h-[240px] sm:pt-3 xl:min-h-[282px]" style={{ borderColor: "rgba(255,255,255,0.08)" }}>
           <PriceChart
             asset={selectedAsset}
             compact
@@ -698,44 +734,92 @@ function MarketRegimeMap({ overview, hero, structure }: { overview: any; hero: a
   );
 }
 
+function PulseSignalCard({
+  label,
+  value,
+  context,
+  tone,
+  rows,
+}: {
+  label: string;
+  value: string;
+  context: string;
+  tone?: "up" | "down" | "neutral";
+  rows: { label: string; value: string; tone?: "up" | "down" | "neutral" }[];
+}) {
+  const color = tone === "up" ? "var(--bull)" : tone === "down" ? "var(--bear)" : "var(--foreground)";
+  return (
+    <div className="border px-4 py-4" style={{ borderColor: B }}>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <p className="text-[10px] font-mono uppercase tracking-[0.14em]" style={{ color: "var(--foreground-faint)" }}>{label}</p>
+          <p className="mt-2 text-[18px] font-mono font-bold tabular-nums" style={{ color }}>{value}</p>
+        </div>
+        <span className="mt-1 h-2 w-2 rounded-full" style={{ background: color }} />
+      </div>
+      <p className="mt-3 min-h-8 text-[11px] font-mono leading-relaxed" style={{ color: "var(--foreground-muted)" }}>{context}</p>
+      <div className="mt-4 grid grid-cols-2 gap-px">
+        {rows.map((row) => {
+          const rowColor = row.tone === "up" ? "var(--bull)" : row.tone === "down" ? "var(--bear)" : "var(--foreground)";
+          return (
+            <div key={`${label}-${row.label}`} className="border px-3 py-2" style={{ borderColor: "rgba(255,255,255,0.06)" }}>
+              <p className="text-[9px] font-mono uppercase tracking-[0.12em]" style={{ color: "var(--foreground-faint)" }}>{row.label}</p>
+              <p className="mt-1 truncate text-[11px] font-mono font-bold tabular-nums" style={{ color: rowColor }}>{row.value}</p>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 function PulseView({ overview, hero, structure }: { overview: any; hero: any; structure: any }) {
   const pulse = overview?.marketPulse ?? {};
   const latestOi = structure?.futuresOpenInterest?.[0] ?? {};
+  const previousOi = structure?.futuresOpenInterest?.[1] ?? {};
   const latestFunding = structure?.fundingRate?.[0] ?? {};
+  const marketCapChange = n(pulse.totalCryptoMarketCap?.dayChangePct);
+  const stableChange = n(pulse.stablecoinMarketCap?.dayChangePct);
+  const oiDelta = pctChange(latestOi.all, previousOi.all);
   const funding = n(latestFunding.binance);
   return (
     <div style={{ borderColor: B }}>
-      <div className="grid grid-cols-1 xl:grid-cols-3" style={{ borderColor: B }}>
-        <div className="grid grid-cols-1 border-b md:grid-cols-2 xl:col-span-2 xl:border-b-0 xl:border-r" style={{ borderColor: B }}>
-          <div className="border-b px-5 py-5 md:border-r" style={{ borderColor: B }}>
+      <div className="grid grid-cols-1 xl:grid-cols-[0.95fr_1.25fr_1fr]" style={{ borderColor: B }}>
+          <div className="border-b px-5 py-5 xl:border-b-0 xl:border-r" style={{ borderColor: B }}>
             <FearGreedRail latest={pulse.fearGreed?.latest} delta={pulse.fearGreed?.delta} />
           </div>
-          <div className="border-b px-5 py-5" style={{ borderColor: B }}>
-            <MarketCapArea
-              rows={pulse.totalCryptoMarketCap?.series ?? []}
-              latest={pulse.totalCryptoMarketCap?.latest}
-              changePct={pulse.totalCryptoMarketCap?.dayChangePct}
+        <div className="grid grid-cols-1 gap-px border-b md:grid-cols-3 xl:border-b-0 xl:border-r">
+            <PulseSignalCard
+              label="Spot Size"
+              value={money(pulse.totalCryptoMarketCap?.latest)}
+              context="Total crypto market value and daily direction."
+              tone={marketCapChange == null ? "neutral" : marketCapChange >= 0 ? "up" : "down"}
+              rows={[
+                { label: "1D", value: pct(marketCapChange), tone: marketCapChange == null ? "neutral" : marketCapChange >= 0 ? "up" : "down" },
+                { label: "Stablecoins", value: pct(stableChange), tone: stableChange == null ? "neutral" : stableChange >= 0 ? "up" : "down" },
+              ]}
+            />
+            <PulseSignalCard
+              label="Futures Load"
+              value={money(latestOi.all)}
+              context="Open Interest"
+              tone={oiDelta == null ? "neutral" : oiDelta >= 0 ? "up" : "down"}
+              rows={[
+                { label: "OI Delta", value: pct(oiDelta), tone: oiDelta == null ? "neutral" : oiDelta >= 0 ? "up" : "down" },
+                { label: "Venue", value: "All" },
+              ]}
+            />
+            <PulseSignalCard
+              label="Perp Bias"
+              value={pct(latestFunding.binance, 3)}
+              context="Funding"
+              tone={funding == null ? "neutral" : funding >= 0 ? "up" : "down"}
+              rows={[
+                { label: "Venue", value: "Binance" },
+                { label: "Market", value: "Perps" },
+              ]}
             />
           </div>
-          <div className="border-b px-5 py-5 md:border-b-0 md:border-r" style={{ borderColor: B }}>
-            <div className="flex items-start justify-between gap-4">
-              <DataCell label="Total Futures OI" value={money(latestOi.all)} />
-              <p className="text-[10px] font-mono uppercase tracking-[0.14em]" style={{ color: "var(--foreground-faint)" }}>
-                All venues
-              </p>
-            </div>
-            <TrendArea rows={structure?.futuresOpenInterest ?? []} field="all" tone="neutral" />
-          </div>
-          <div className="px-5 py-5">
-            <div className="flex items-start justify-between gap-4">
-              <DataCell label="Binance Funding" value={pct(latestFunding.binance, 3)} tone={funding != null && funding >= 0 ? "up" : "down"} />
-              <p className="text-[10px] font-mono uppercase tracking-[0.14em]" style={{ color: "var(--foreground-faint)" }}>
-                Perpetuals
-              </p>
-            </div>
-            <TrendArea rows={structure?.fundingRate ?? []} field="binance" tone={funding != null && funding >= 0 ? "up" : "down"} />
-          </div>
-        </div>
         <div className="px-5 py-6">
           <MarketRegimeMap overview={overview} hero={hero} structure={structure} />
         </div>
@@ -777,8 +861,8 @@ export function DeskView({ desk, brief }: { desk: any; brief?: any }) {
   const readableHeadline = `Crypto market cap is ${money(marketCap.latest)} while BTC and ETH ${directionPhrase(btc.changePct24h, eth.changePct24h)} ahead of ${catalyst?.label ?? "macro catalysts"}`;
   const readableSubheadline = [
     `Crypto market cap ${money(marketCap.latest)} (${pct(marketCap.dayChangePct)})`,
-    `BTC ${money(btc.price)} (${pct(btc.changePct24h)})`,
-    `ETH ${money(eth.price)} (${pct(eth.changePct24h)})`,
+    `BTC ${priceMoney(btc.price)} (${pct(btc.changePct24h)})`,
+    `ETH ${priceMoney(eth.price)} (${pct(eth.changePct24h)})`,
     `Fear & Greed ${compact(fearGreed.latest)}`,
   ].join(" · ");
   const heat = [
@@ -880,10 +964,10 @@ export function DeskView({ desk, brief }: { desk: any; brief?: any }) {
                 </div>
                 <div className="mt-8 grid grid-cols-2 gap-px">
                   <div className="border px-3 py-3" style={{ borderColor: "rgba(255,255,255,0.12)" }}>
-                    <DataCell label="BTC" value={`${money(btc.price)} ${pct(btc.changePct24h)}`} tone={n(btc.changePct24h) != null && n(btc.changePct24h)! >= 0 ? "up" : "down"} />
+                    <DataCell label="BTC" value={`${priceMoney(btc.price)} ${pct(btc.changePct24h)}`} tone={n(btc.changePct24h) != null && n(btc.changePct24h)! >= 0 ? "up" : "down"} />
                   </div>
                   <div className="border px-3 py-3" style={{ borderColor: "rgba(255,255,255,0.12)" }}>
-                    <DataCell label="ETH" value={`${money(eth.price)} ${pct(eth.changePct24h)}`} tone={n(eth.changePct24h) != null && n(eth.changePct24h)! >= 0 ? "up" : "down"} />
+                    <DataCell label="ETH" value={`${priceMoney(eth.price)} ${pct(eth.changePct24h)}`} tone={n(eth.changePct24h) != null && n(eth.changePct24h)! >= 0 ? "up" : "down"} />
                   </div>
                   <div className="border px-3 py-3" style={{ borderColor: "rgba(255,255,255,0.12)" }}>
                     <DataCell label="Fear Greed" value={`${compact(fearGreed.latest)} / 100`} />
@@ -984,20 +1068,25 @@ export function DeskView({ desk, brief }: { desk: any; brief?: any }) {
             </div>
             <div className="grid grid-cols-1 border-t md:grid-cols-2" style={{ borderColor: B }}>
               <div className="border-b px-6 py-5 md:border-b-0 md:border-r" style={{ borderColor: B }}>
-                <p className="mb-4 text-[11px] font-mono uppercase tracking-[0.18em]" style={{ color: "var(--foreground-faint)" }}>Catalyst Timeline</p>
-                <div className="relative">
-                  <div className="absolute bottom-4 left-0 right-0 hidden border-t md:block" style={{ borderColor: "rgba(255,255,255,0.12)" }} />
-                  <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
+                <div className="mb-5 flex flex-wrap items-end justify-between gap-4">
+                  <p className="text-[11px] font-mono uppercase tracking-[0.18em]" style={{ color: "var(--foreground-faint)" }}>Catalyst Timeline</p>
+                  <p className="text-[10px] font-mono uppercase tracking-[0.14em]" style={{ color: "var(--foreground-faint)" }}>Week Ahead</p>
+                </div>
+                <div>
+                  <div className="grid grid-cols-1 gap-px sm:grid-cols-2">
                     {(brief.week_ahead ?? []).slice(0, 4).map((item: any, index: number) => {
                       const high = item.importance === "high";
                       return (
-                        <div key={`brief-week-${index}`} className="relative border px-3 py-3" style={{ borderColor: high ? "rgba(239,68,68,0.35)" : B, background: high ? "rgba(239,68,68,0.06)" : "transparent" }}>
-                          <div className="mb-3 flex items-center justify-between gap-3">
-                            <span className="text-[10px] font-mono font-bold uppercase" style={{ color: "var(--foreground-faint)" }}>{dateLabel(item.date)}</span>
+                        <div key={`brief-week-${index}`} className="relative min-h-[168px] border px-4 py-4" style={{ borderColor: high ? "rgba(239,68,68,0.38)" : B, background: high ? "rgba(239,68,68,0.055)" : "rgba(255,255,255,0.015)" }}>
+                          <div className="mb-4 flex items-center justify-between gap-3">
+                            <span className="text-[10px] font-mono font-bold uppercase tracking-[0.12em]" style={{ color: "var(--foreground-faint)" }}>{dateLabel(item.date)}</span>
                             <span className="h-2 w-2 rounded-full" style={{ background: high ? "var(--bear)" : "#d6841f" }} />
                           </div>
-                          <p className="text-[12px] font-mono font-bold" style={{ color: "var(--foreground)" }}>{item.label}</p>
-                          <p className="mt-2 line-clamp-2 text-[10px] font-mono leading-relaxed" style={{ color: "var(--foreground-muted)" }}>{item.detail}</p>
+                          <p className="text-[13px] font-mono font-bold leading-snug" style={{ color: "var(--foreground)" }}>{item.label}</p>
+                          <p className="mt-3 text-[11px] font-mono leading-relaxed" style={{ color: "var(--foreground-muted)" }}>{item.detail}</p>
+                          <p className="mt-4 text-[9px] font-mono uppercase tracking-[0.14em]" style={{ color: high ? "var(--bear)" : "var(--foreground-faint)" }}>
+                            {high ? "High Impact" : "Monitor"}
+                          </p>
                         </div>
                       );
                     })}
@@ -1115,39 +1204,20 @@ export function DeskView({ desk, brief }: { desk: any; brief?: any }) {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-[0.9fr_1.1fr]" style={{ borderColor: B }}>
-        <div className="border-b px-5 py-6 xl:border-b-0 xl:border-r" style={{ borderColor: B }}>
-          <p className="mb-4 text-[11px] font-mono uppercase tracking-[0.16em] font-bold" style={{ color: "var(--foreground-dim)" }}>Catalyst Queue</p>
-          <div className="grid gap-3">
-            {macro.slice(0, 4).map((day: any, index: number) => (
-              <div key={`desk-macro-${day.date ?? index}`} className="grid grid-cols-[72px_1fr] gap-4 border-t py-3" style={{ borderColor: "rgba(255,255,255,0.06)" }}>
-                <span className="text-[11px] font-mono font-bold" style={{ color: "var(--foreground)" }}>{dateLabel(day.date)}</span>
-                <div className="space-y-2">
-                  {(day.events ?? []).slice(0, 2).map((event: any) => (
-                    <p key={`${day.date}-${event.name}`} className="text-[11px] font-mono leading-relaxed" style={{ color: "var(--foreground-muted)" }}>
-                      <span style={{ color: "var(--foreground)" }}>{event.name}</span> actual {macroValue(event.actual)} / forecast {macroValue(event.forecast)}
-                    </p>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-        <div className="px-5 py-6">
+      <div className="border-t px-5 py-6" style={{ borderColor: B }}>
           <p className="mb-4 text-[11px] font-mono uppercase tracking-[0.16em] font-bold" style={{ color: "var(--foreground-dim)" }}>TradFi Proxy</p>
           <div className="grid grid-cols-1 gap-px md:grid-cols-3">
             {stocks.slice(0, 6).map((stock: any) => (
               <div key={`desk-stock-${stock.ticker}`} className="border px-4 py-4" style={{ borderColor: B }}>
                 <div className="flex items-baseline justify-between gap-4">
                   <span className="text-[12px] font-mono font-bold" style={{ color: "var(--foreground)" }}>{stock.ticker}</span>
-                  <span className="text-[12px] font-mono font-bold tabular-nums" style={{ color: "var(--foreground)" }}>{money(stock.price)}</span>
+                  <span className="text-[12px] font-mono font-bold tabular-nums" style={{ color: "var(--foreground)" }}>{priceMoney(stock.price)}</span>
                 </div>
                 <p className="mt-2 truncate text-[10px] font-mono" style={{ color: "var(--foreground-faint)" }}>{stock.name}</p>
                 <p className="mt-3 text-[11px] font-mono tabular-nums" style={{ color: "var(--foreground-muted)" }}>Turnover {money(stock.turnover)}</p>
               </div>
             ))}
           </div>
-        </div>
       </div>
     </div>
   );
@@ -1328,55 +1398,103 @@ function StructureView({ structure }: { structure: any }) {
 
 function EventsView({ news, macro }: { news: any; macro: any }) {
   const [expandedNewsId, setExpandedNewsId] = useState<string | null>(null);
+  const [expandedBodies, setExpandedBodies] = useState<Record<string, string>>({});
+  const [loadingBodyId, setLoadingBodyId] = useState<string | null>(null);
   const calendar = macro?.calendar ?? [];
   const eventHistory = macro?.eventHistory ?? {};
-  const hotNews = (news?.hot ?? []).slice(0, 10);
+  const hotNews = useMemo(() => (news?.hot ?? []).slice(0, 10), [news]);
+
+  useEffect(() => {
+    if (!expandedNewsId || expandedBodies[expandedNewsId]) return;
+    const activeItem = hotNews.find((item: any) => String(item.id) === String(expandedNewsId));
+    if (!activeItem) return;
+
+    let ignore = false;
+    async function fetchFullBody() {
+      setLoadingBodyId(String(expandedNewsId));
+      try {
+        const response = await fetch("/api/hot-news?days=7&page_size=100", { cache: "no-store" });
+        if (!response.ok) return;
+        const payload = await response.json();
+        const list = payload?.list ?? payload?.data?.list ?? payload?.data ?? [];
+        const activeLink = newsSourceLink(activeItem);
+        const match = Array.isArray(list)
+          ? list.find((row: any) => {
+              return (
+                String(row.id) === String(activeItem.id) ||
+                (activeLink && newsSourceLink(row) === activeLink) ||
+                (row.title && activeItem.title && row.title === activeItem.title)
+              );
+            })
+          : null;
+        const fullText = textFromHtml(match?.content);
+        if (!ignore && fullText) {
+          setExpandedBodies((current) => ({ ...current, [String(expandedNewsId)]: fullText }));
+        }
+      } finally {
+        if (!ignore) setLoadingBodyId(null);
+      }
+    }
+
+    fetchFullBody();
+    return () => {
+      ignore = true;
+    };
+  }, [expandedNewsId, expandedBodies, hotNews]);
 
   return (
     <div style={{ borderColor: B }}>
       <div className="border-b px-5 py-8 lg:px-7 lg:py-10" style={{ borderColor: B }}>
-        <div className="mb-10">
-          <p className="text-[11px] font-mono uppercase tracking-[0.18em] font-bold" style={{ color: "var(--foreground-dim)" }}>
-            Macro Calendar
-          </p>
-          <p className="mt-2 text-[18px] font-mono font-bold" style={{ color: "var(--foreground)" }}>
-            Upcoming market catalysts
+        <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
+          <div>
+            <p className="text-[11px] font-mono uppercase tracking-[0.18em] font-bold" style={{ color: "var(--foreground-dim)" }}>
+              Macro Calendar
+            </p>
+            <p className="mt-2 text-[22px] font-mono font-bold" style={{ color: "var(--foreground)" }}>
+              Upcoming market catalysts
+            </p>
+          </div>
+          <p className="max-w-sm text-[11px] font-mono leading-relaxed" style={{ color: "var(--foreground-muted)" }}>
+            A date-first board for macro releases that can reset crypto risk, rates, and liquidity expectations.
           </p>
         </div>
-        <div className="relative">
-          <div className="absolute left-0 right-0 top-[74px] hidden border-t border-dashed md:block" style={{ borderColor: "rgba(255,255,255,0.16)" }} />
-          <div className="grid grid-cols-1 gap-7 md:grid-cols-2 xl:grid-cols-5">
+        <div className="grid grid-cols-1 gap-px md:grid-cols-2 xl:grid-cols-5">
           {calendar.slice(0, 5).map((day: any, index: number) => {
             const active = index === 0;
             const primaryEvent = day.events?.[0];
             const history = primaryEvent ? eventHistory[primaryEvent]?.[0] : null;
             return (
-              <div key={day.date ?? index} className="relative min-h-52 text-center">
-                <p className="text-[13px] font-mono font-bold" style={{ color: active ? "var(--foreground)" : "var(--foreground-muted)" }}>
-                  {dateLabel(day.date)}
-                </p>
-                <div className="relative z-10 mx-auto mt-5 flex h-9 w-9 items-center justify-center rounded-full border" style={{ borderColor: active ? "var(--accent)" : "rgba(255,255,255,0.18)", background: "var(--surface)" }}>
-                  <span className="h-2 w-2 rounded-full" style={{ background: active ? "var(--accent)" : "rgba(255,255,255,0.42)" }} />
+              <div key={day.date ?? index} className="border px-4 py-4" style={{ borderColor: active ? "rgba(255,255,255,0.26)" : B }}>
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <p className="text-[10px] font-mono uppercase tracking-[0.14em]" style={{ color: "var(--foreground-faint)" }}>
+                      Session
+                    </p>
+                    <p className="mt-2 text-[16px] font-mono font-bold" style={{ color: active ? "var(--foreground)" : "var(--foreground-muted)" }}>
+                      {dateLabel(day.date)}
+                    </p>
+                  </div>
+                  <span className="mt-1 h-2 w-2 rounded-full" style={{ background: active ? "var(--accent)" : "rgba(255,255,255,0.3)" }} />
                 </div>
-                <div className="mx-auto mt-6 max-w-[210px] space-y-2">
+                <div className="mt-5 space-y-2">
                   {(day.events ?? []).slice(0, 3).map((event: string, eventIndex: number) => (
-                    <p key={`${day.date}-${eventIndex}`} className="text-[11px] font-mono leading-relaxed" style={{ color: active ? "var(--foreground)" : "var(--foreground-muted)" }}>
+                    <p key={`${day.date}-${eventIndex}`} className="border-l pl-3 text-[11px] font-mono leading-relaxed" style={{ borderColor: active ? "var(--accent)" : "rgba(255,255,255,0.12)", color: active ? "var(--foreground)" : "var(--foreground-muted)" }}>
                       {event}
                     </p>
                   ))}
                 </div>
                 {history ? (
-                  <div className="mx-auto mt-5 grid max-w-[260px] grid-cols-3 gap-3 border-t pt-3" style={{ borderColor: "rgba(255,255,255,0.08)" }}>
+                  <div className="mt-5 grid grid-cols-3 gap-px border-t pt-3" style={{ borderColor: "rgba(255,255,255,0.08)" }}>
                     {[
                       ["Actual", history.actual],
                       ["Forecast", history.forecast],
                       ["Prev", history.previous],
                     ].map(([label, value]) => (
-                      <div key={String(label)} className="min-w-0">
-                        <p className="text-[10px] font-mono uppercase tracking-[0.14em]" style={{ color: "var(--foreground-faint)" }}>
+                      <div key={String(label)} className="border px-2 py-2" style={{ borderColor: "rgba(255,255,255,0.06)" }}>
+                        <p className="text-[9px] font-mono uppercase tracking-[0.12em]" style={{ color: "var(--foreground-faint)" }}>
                           {String(label)}
                         </p>
-                        <p className="mt-2 text-[12px] font-mono font-bold tabular-nums" style={{ color: "var(--foreground)" }}>
+                        <p className="mt-1 truncate text-[11px] font-mono font-bold tabular-nums" style={{ color: "var(--foreground)" }}>
                           {macroValue(value)}
                         </p>
                       </div>
@@ -1390,7 +1508,6 @@ function EventsView({ news, macro }: { news: any; macro: any }) {
               </div>
             );
           })}
-          </div>
         </div>
       </div>
 
@@ -1400,49 +1517,74 @@ function EventsView({ news, macro }: { news: any; macro: any }) {
             Hot News
           </p>
           <p className="text-[10px] font-mono uppercase tracking-[0.14em]" style={{ color: "var(--foreground-faint)" }}>
-            Scroll horizontal
+            More to the right
           </p>
         </div>
-        <div className="flex gap-4 overflow-x-auto pb-4 [scrollbar-color:rgba(255,255,255,0.2)_transparent]">
-          {hotNews.map((item: any) => {
-            const expanded = expandedNewsId === item.id;
-            const body = item.content ?? item.contentExcerpt ?? "No summary available.";
-            return (
-              <article
-                key={item.id}
-                className="flex min-h-72 w-[310px] shrink-0 flex-col border bg-black/10 md:w-[360px]"
-                style={{ borderColor: expanded ? "rgba(255,255,255,0.28)" : B }}
-              >
-                <button
-                  type="button"
-                  onClick={() => setExpandedNewsId(expanded ? null : item.id)}
-                  className="flex flex-1 flex-col px-5 py-5 text-left transition-colors hover:bg-white/[0.03]"
+        <div className="relative">
+          <div className="pointer-events-none absolute inset-y-0 right-0 z-10 flex w-20 items-center justify-end bg-gradient-to-l from-[var(--background)] via-[var(--background)]/80 to-transparent pr-3">
+            <div className="flex h-10 w-10 items-center justify-center border bg-[var(--surface)]" style={{ borderColor: "rgba(255,255,255,0.14)" }}>
+              <span className="text-[18px] font-mono leading-none" style={{ color: "var(--foreground-muted)" }}>→</span>
+            </div>
+          </div>
+          <div className="flex gap-4 overflow-x-auto pb-4 pr-20 [scrollbar-color:rgba(255,255,255,0.2)_transparent]">
+            {hotNews.map((item: any) => {
+              const id = String(item.id);
+              const expanded = expandedNewsId === id;
+              const initialBody = textFromHtml(
+                item.content ??
+                item.contentText ??
+                item.content_text ??
+                item.fullContent ??
+                item.full_content ??
+                item.summary ??
+                item.contentExcerpt ??
+                "No summary available."
+              );
+              const body = expandedBodies[id] ?? initialBody;
+              const link = newsSourceLink(item);
+              const loadingFullText = expanded && loadingBodyId === id && !expandedBodies[id];
+              return (
+                <article
+                  key={id}
+                  className={`flex min-h-72 shrink-0 flex-col border bg-black/10 transition-[width] ${expanded ? "w-[calc(100vw-32px)] md:w-[680px]" : "w-[310px] md:w-[360px]"}`}
+                  style={{ borderColor: expanded ? "rgba(255,255,255,0.28)" : B }}
                 >
-                  <div className="mb-5 flex items-start justify-between gap-5">
-                    <span className="text-[10px] font-mono uppercase tracking-[0.14em]" style={{ color: "var(--foreground-faint)" }}>
-                      {dateLabel(item.timestampIso)}
-                    </span>
-                    <span className="text-[16px] leading-none" style={{ color: "var(--foreground-faint)" }}>
-                      {expanded ? "x" : "+"}
-                    </span>
-                  </div>
-                  <p className="text-[14px] font-mono font-bold leading-relaxed" style={{ color: "var(--foreground)" }}>
-                    {item.title || "Untitled update"}
-                  </p>
-                  <p className={`mt-5 text-[11px] font-mono leading-relaxed ${expanded ? "" : "line-clamp-5"}`} style={{ color: "var(--foreground-muted)" }}>
-                    {body}
-                  </p>
-                </button>
-                {item.sourceLink ? (
-                  <div className="border-t px-5 py-3" style={{ borderColor: B }}>
-                    <a href={item.sourceLink} target="_blank" rel="noreferrer" className="text-[10px] font-mono uppercase tracking-[0.14em] transition-colors hover:text-white" style={{ color: "var(--foreground-faint)" }}>
-                      Source
-                    </a>
-                  </div>
-                ) : null}
-              </article>
-            );
-          })}
+                  <button
+                    type="button"
+                    onClick={() => setExpandedNewsId(expanded ? null : id)}
+                    className="flex flex-1 flex-col px-5 py-5 text-left transition-colors hover:bg-white/[0.03]"
+                  >
+                    <div className="mb-5 flex items-start justify-between gap-5">
+                      <span className="text-[10px] font-mono uppercase tracking-[0.14em]" style={{ color: "var(--foreground-faint)" }}>
+                        {dateLabel(item.timestampIso)}
+                      </span>
+                      <span className="text-[16px] leading-none" style={{ color: "var(--foreground-faint)" }}>
+                        {expanded ? "x" : "+"}
+                      </span>
+                    </div>
+                    <p className="text-[14px] font-mono font-bold leading-relaxed" style={{ color: "var(--foreground)" }}>
+                      {item.title || "Untitled update"}
+                    </p>
+                    <p className={`mt-5 whitespace-pre-wrap text-[11px] font-mono leading-relaxed ${expanded ? "" : "line-clamp-5"}`} style={{ color: "var(--foreground-muted)" }}>
+                      {body}
+                    </p>
+                    {loadingFullText ? (
+                      <p className="mt-4 text-[10px] font-mono uppercase tracking-[0.14em]" style={{ color: "var(--foreground-faint)" }}>
+                        Loading full SoSoValue body
+                      </p>
+                    ) : null}
+                  </button>
+                  {link ? (
+                    <div className="border-t px-5 py-3" style={{ borderColor: B }}>
+                      <a href={link} target="_blank" rel="noreferrer" className="text-[10px] font-mono uppercase tracking-[0.14em] transition-colors hover:text-white" style={{ color: "var(--foreground-faint)" }}>
+                        Open full source
+                      </a>
+                    </div>
+                  ) : null}
+                </article>
+              );
+            })}
+          </div>
         </div>
       </div>
     </div>
@@ -1591,31 +1733,35 @@ function AnalysisView({ analysis }: { analysis: any }) {
       </div>
 
       <div className="border-b px-5 py-6" style={{ borderColor: B }}>
-          <div className="mb-5 flex items-center justify-between gap-4">
+          <div className="mb-5 flex items-end justify-between gap-4">
+            <div>
             <p className="text-[11px] font-mono uppercase tracking-[0.16em] font-bold" style={{ color: "var(--foreground-dim)" }}>Macro Surprise Tracker</p>
-            <p className="text-[10px] font-mono uppercase tracking-[0.14em]" style={{ color: "var(--foreground-faint)" }}>Actual vs forecast</p>
-          </div>
-          <div className="border" style={{ borderColor: B }}>
-            <div className="hidden grid-cols-[86px_1fr_92px_auto] gap-3 border-b px-3 py-2 text-[10px] font-mono uppercase tracking-[0.12em] sm:grid" style={{ borderColor: B, color: "var(--foreground-faint)" }}>
-              <span>Date</span>
-              <span>Event</span>
-              <span>Magnitude</span>
-              <span>Surprise</span>
+              <p className="mt-2 text-[12px] font-mono" style={{ color: "var(--foreground-muted)" }}>Actual readings compared with consensus.</p>
             </div>
+            <p className="text-[10px] font-mono uppercase tracking-[0.14em]" style={{ color: "var(--foreground-faint)" }}>Surprise</p>
+          </div>
+          <div className="grid grid-cols-1 gap-px md:grid-cols-2 xl:grid-cols-3">
             {macroEvents.slice(0, 10).map((event: any, index: number) => {
               const surprise = n(event.surprise);
-              const surpriseWidth = Math.max(4, ((Math.abs(surprise ?? 0) / maxSurprise) * 100));
+              const surpriseWidth = Math.max(3, ((Math.abs(surprise ?? 0) / maxSurprise) * 100));
+              const tone = surprise == null ? "var(--foreground-faint)" : surprise >= 0 ? "var(--bull)" : "var(--bear)";
               return (
-                <div key={`macro-surprise-${event.event ?? index}`} className="grid grid-cols-1 gap-3 border-b px-3 py-3 text-[11px] font-mono last:border-b-0 sm:grid-cols-[86px_1fr_92px_auto] sm:items-center" style={{ borderColor: "rgba(255,255,255,0.06)" }}>
-                  <div className="flex items-baseline justify-between gap-3 sm:block">
-                    <span className="tabular-nums" style={{ color: "var(--foreground-muted)" }}>{dateLabel(event.date)}</span>
-                    <span className="tabular-nums font-bold sm:hidden" style={{ color: surprise == null ? "var(--foreground-faint)" : surprise >= 0 ? "var(--bull)" : "var(--bear)" }}>{pct(surprise)}</span>
+                <div key={`macro-surprise-${event.event ?? index}`} className="border px-4 py-4" style={{ borderColor: B }}>
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="min-w-0">
+                      <p className="text-[10px] font-mono uppercase tracking-[0.12em]" style={{ color: "var(--foreground-faint)" }}>{dateLabel(event.date)}</p>
+                      <p className="mt-2 line-clamp-2 text-[12px] font-mono font-bold leading-relaxed" style={{ color: "var(--foreground)" }}>{event.event}</p>
+                    </div>
+                    <p className="shrink-0 text-[13px] font-mono font-bold tabular-nums" style={{ color: tone }}>{pct(surprise)}</p>
                   </div>
-                  <span className="whitespace-normal sm:truncate" style={{ color: "var(--foreground)" }}>{event.event} <span style={{ color: "var(--foreground-faint)" }}>({macroValue(event.actual)})</span></span>
-                  <span className="h-2 border" style={{ borderColor: B, background: "rgba(255,255,255,0.04)" }}>
-                    <span className="block h-full" style={{ width: `${surpriseWidth}%`, background: surprise == null ? "rgba(255,255,255,0.16)" : surprise >= 0 ? "var(--bull)" : "var(--bear)" }} />
-                  </span>
-                  <span className="hidden tabular-nums font-bold sm:block" style={{ color: surprise == null ? "var(--foreground-faint)" : surprise >= 0 ? "var(--bull)" : "var(--bear)" }}>{pct(surprise)}</span>
+                  <div className="mt-4 grid grid-cols-3 gap-3">
+                    <DataCell label="Actual" value={macroValue(event.actual)} />
+                    <DataCell label="Forecast" value={macroValue(event.forecast)} />
+                    <DataCell label="Previous" value={macroValue(event.previous)} />
+                  </div>
+                  <div className="mt-4 h-1.5 border" style={{ borderColor: B, background: "rgba(255,255,255,0.04)" }}>
+                    <span className="block h-full" style={{ width: `${surpriseWidth}%`, background: tone }} />
+                  </div>
                 </div>
               );
             })}
@@ -1633,99 +1779,173 @@ function WatchView({ watchlist, analysis }: { watchlist: any; analysis?: any }) 
   const totalCost = treasuries.reduce((sum: number, company: any) => sum + (n(company.acquisitionCost) ?? 0), 0);
   const maxStockTurnover = Math.max(...stocks.map((stock: any) => n(stock.turnover) ?? 0), 1);
   const maxTreasuryHolding = Math.max(...treasuries.map((company: any) => n(company.btcHolding) ?? 0), 1);
+  const topStock = [...stocks].sort((a: any, b: any) => (n(b.turnover) ?? 0) - (n(a.turnover) ?? 0))[0];
+  const topTreasury = [...treasuries].sort((a: any, b: any) => (n(b.btcHolding) ?? 0) - (n(a.btcHolding) ?? 0))[0];
 
   return (
     <div style={{ borderColor: B }}>
-      <div className="grid grid-cols-1 border-b md:grid-cols-3" style={{ borderColor: B }}>
-        <div className="border-b px-5 py-5 md:border-b-0 md:border-r" style={{ borderColor: B }}>
-          <DataCell label="Tracked Equity Proxies" value={String(stocks.length)} />
-        </div>
-        <div className="border-b px-5 py-5 md:border-b-0 md:border-r" style={{ borderColor: B }}>
-          <DataCell label="Tracked Treasury BTC" value={`${compact(totalBtc)} BTC`} />
-        </div>
-        <div className="px-5 py-5">
-          <DataCell label="Recorded Cost Basis" value={money(totalCost)} />
-        </div>
-      </div>
       <div className="grid grid-cols-1 xl:grid-cols-2" style={{ borderColor: B }}>
-      <div className="border-b xl:border-b-0 xl:border-r" style={{ borderColor: B }}>
-        <p className="border-b px-5 py-4 text-[11px] font-mono uppercase tracking-[0.16em] font-bold" style={{ borderColor: B, color: "var(--foreground-dim)" }}>Crypto Stocks</p>
-        {stocks.map((stock: any) => {
-          const turnover = n(stock.turnover) ?? 0;
-          return (
-          <div key={stock.ticker} className="border-b px-4 py-4 sm:px-5" style={{ borderColor: "rgba(255,255,255,0.06)" }}>
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_auto_auto_auto] sm:items-center sm:gap-4">
-            <div className="min-w-0">
-              <p className="text-[12px] font-mono font-bold" style={{ color: "var(--foreground)" }}>{stock.ticker}</p>
-              <p className="truncate text-[10px] font-mono" style={{ color: "var(--foreground-faint)" }}>{stock.sector ?? stock.name}</p>
+        <div className="border-b xl:border-b-0 xl:border-r" style={{ borderColor: B }}>
+          <div className="border-b px-5 py-5" style={{ borderColor: B }}>
+            <div className="flex flex-wrap items-end justify-between gap-4">
+              <div>
+                <p className="text-[11px] font-mono uppercase tracking-[0.16em] font-bold" style={{ color: "var(--foreground-dim)" }}>Equity Proxy Board</p>
+                <p className="mt-2 max-w-xl text-[12px] font-mono leading-relaxed" style={{ color: "var(--foreground-muted)" }}>
+                  Public stocks that can move with crypto sentiment, liquidity, and mining or exchange exposure.
+                </p>
+              </div>
+              <div className="text-right">
+                <p className="text-[28px] font-mono font-bold leading-none tabular-nums" style={{ color: "var(--foreground)" }}>{stocks.length}</p>
+                <p className="mt-2 text-[10px] font-mono uppercase tracking-[0.14em]" style={{ color: "var(--foreground-faint)" }}>Tracked Names</p>
+              </div>
             </div>
-            <div className="grid grid-cols-3 gap-3 sm:contents">
-              <span className="text-[12px] font-mono font-bold tabular-nums" style={{ color: "var(--foreground)" }}>{money(stock.price)}</span>
-              <span className="text-[11px] font-mono tabular-nums" style={{ color: "var(--foreground-muted)" }}>{money(stock.turnover)}</span>
-              <span className="text-[11px] font-mono tabular-nums" style={{ color: "var(--foreground-muted)" }}>P/B {compact(stock.pb)}</span>
+            <div className="mt-5 grid grid-cols-3 gap-px">
+              <div className="border px-3 py-3" style={{ borderColor: "rgba(255,255,255,0.07)" }}>
+                <DataCell label="Top Turnover" value={topStock ? money(topStock.turnover) : "--"} />
+              </div>
+              <div className="border px-3 py-3" style={{ borderColor: "rgba(255,255,255,0.07)" }}>
+                <DataCell label="Most Active" value={topStock?.ticker ?? "--"} />
+              </div>
+              <div className="border px-3 py-3" style={{ borderColor: "rgba(255,255,255,0.07)" }}>
+                <DataCell label="Sectors" value={String(stockSectors.length || "--")} />
+              </div>
             </div>
           </div>
-            <div className="mt-3 h-1.5 border" style={{ borderColor: B, background: "rgba(255,255,255,0.04)" }}>
-              <div className="h-full" style={{ width: `${Math.max(3, (turnover / maxStockTurnover) * 100)}%`, background: "var(--accent)" }} />
+          <div className="border-b" style={{ borderColor: B }}>
+            <div className="hidden grid-cols-[1fr_92px_118px_78px] gap-3 border-b px-5 py-3 text-[10px] font-mono uppercase tracking-[0.12em] md:grid" style={{ borderColor: "rgba(255,255,255,0.06)", color: "var(--foreground-faint)" }}>
+              <span>Company</span>
+              <span>Price</span>
+              <span>Turnover</span>
+              <span>P/B</span>
             </div>
-          </div>
-          );
-        })}
-        {stockSectors.length > 0 ? (
-          <div className="px-5 py-5">
-            <p className="mb-3 text-[11px] font-mono uppercase tracking-[0.16em] font-bold" style={{ color: "var(--foreground-dim)" }}>Equity Proxy Sectors</p>
-            <div className="grid grid-cols-1 gap-px md:grid-cols-2">
-              {stockSectors.slice(0, 6).map((sector: any) => (
-                <div key={`stock-sector-${sector.sectorName}`} className="border px-3 py-3" style={{ borderColor: B }}>
-                  <div className="flex items-baseline justify-between gap-4">
-                    <span className="truncate text-[11px] font-mono uppercase" style={{ color: "var(--foreground)" }}>{sector.sectorName}</span>
-                    <span className="text-[11px] font-mono font-bold tabular-nums" style={{ color: n(sector.changePct24h) != null && n(sector.changePct24h)! >= 0 ? "var(--bull)" : "var(--bear)" }}>{pct(sector.changePct24h)}</span>
+            {stocks.map((stock: any) => {
+              const turnover = n(stock.turnover) ?? 0;
+              return (
+                <div key={stock.ticker} className="grid grid-cols-1 gap-3 border-b px-5 py-4 last:border-b-0 md:grid-cols-[1fr_92px_118px_78px] md:items-center" style={{ borderColor: "rgba(255,255,255,0.06)" }}>
+                  <div className="min-w-0">
+                    <div className="flex items-baseline gap-3">
+                      <p className="text-[13px] font-mono font-bold uppercase" style={{ color: "var(--foreground)" }}>{stock.ticker}</p>
+                      <p className="truncate text-[10px] font-mono uppercase tracking-[0.1em]" style={{ color: "var(--foreground-faint)" }}>{stock.sector ?? "Proxy"}</p>
+                    </div>
+                    <p className="mt-1 truncate text-[11px] font-mono" style={{ color: "var(--foreground-muted)" }}>{stock.name ?? stock.ticker}</p>
                   </div>
-                  <p className="mt-2 text-[10px] font-mono tabular-nums" style={{ color: "var(--foreground-faint)" }}>{money(sector.totalMarketCap)}</p>
+                  <div className="grid grid-cols-3 gap-3 md:contents">
+                    <div>
+                      <span className="block text-[9px] font-mono uppercase tracking-[0.12em] md:hidden" style={{ color: "var(--foreground-faint)" }}>Price</span>
+                      <span className="text-[12px] font-mono font-bold tabular-nums" style={{ color: "var(--foreground)" }}>{priceMoney(stock.price)}</span>
+                    </div>
+                    <div>
+                      <span className="block text-[9px] font-mono uppercase tracking-[0.12em] md:hidden" style={{ color: "var(--foreground-faint)" }}>Turnover</span>
+                      <span className="text-[12px] font-mono tabular-nums" style={{ color: "var(--foreground-muted)" }}>{money(stock.turnover)}</span>
+                    </div>
+                    <div>
+                      <span className="block text-[9px] font-mono uppercase tracking-[0.12em] md:hidden" style={{ color: "var(--foreground-faint)" }}>P/B</span>
+                      <span className="text-[12px] font-mono tabular-nums" style={{ color: "var(--foreground-muted)" }}>{compact(stock.pb)}</span>
+                    </div>
+                  </div>
+                  <div className="h-1.5 border md:col-span-4" style={{ borderColor: B, background: "rgba(255,255,255,0.04)" }}>
+                    <div className="h-full" style={{ width: `${Math.max(3, (turnover / maxStockTurnover) * 100)}%`, background: "var(--accent)" }} />
+                  </div>
                 </div>
-              ))}
-            </div>
+              );
+            })}
           </div>
-        ) : null}
-      </div>
-      <div>
-        <p className="border-b px-5 py-4 text-[11px] font-mono uppercase tracking-[0.16em] font-bold" style={{ borderColor: B, color: "var(--foreground-dim)" }}>BTC Treasuries</p>
-        {treasuries.map((company: any) => {
-          const holding = n(company.btcHolding) ?? 0;
-          return (
-          <div key={company.ticker} className="border-b px-4 py-4 sm:px-5" style={{ borderColor: "rgba(255,255,255,0.06)" }}>
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_auto_auto] sm:items-center sm:gap-4">
-            <div className="min-w-0">
-              <p className="text-[12px] font-mono font-bold" style={{ color: "var(--foreground)" }}>{company.ticker}</p>
-              <p className="truncate text-[10px] font-mono" style={{ color: "var(--foreground-faint)" }}>{company.name}</p>
-            </div>
-            <div className="flex items-baseline justify-between gap-3 sm:contents">
-              <span className="text-[12px] font-mono font-bold tabular-nums" style={{ color: "var(--foreground)" }}>{compact(company.btcHolding)} BTC</span>
-              <span className="text-[11px] font-mono tabular-nums" style={{ color: "var(--foreground-muted)" }}>{dateLabel(company.latestPurchaseDate)}</span>
-            </div>
-            </div>
-            <div className="mt-3 h-2 border" style={{ borderColor: B, background: "rgba(255,255,255,0.04)" }}>
-              <div className="h-full" style={{ width: `${Math.max(3, (holding / maxTreasuryHolding) * 100)}%`, background: "rgba(247,147,26,0.78)" }} />
-            </div>
-            <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-4">
-              <DataCell label="Acquired" value={`${compact(company.btcAcquired)} BTC`} />
-              <DataCell label="Avg Cost" value={money(company.avgBtcCost)} />
-              <DataCell label="Cost" value={money(company.acquisitionCost)} />
-            </div>
-            {(company.recentPurchases ?? []).length > 0 ? (
-              <div className="mt-3 flex flex-wrap gap-2">
-                {(company.recentPurchases ?? []).slice(0, 3).map((purchase: any, index: number) => (
-                  <span key={`${company.ticker}-purchase-${purchase.date ?? index}`} className="border px-2 py-1 text-[10px] font-mono tabular-nums" style={{ borderColor: B, color: "var(--foreground-faint)" }}>
-                    {dateLabel(purchase.date)} {compact(purchase.btcAcquired)} BTC
-                  </span>
+          {stockSectors.length > 0 ? (
+            <div className="px-5 py-5">
+              <p className="mb-3 text-[11px] font-mono uppercase tracking-[0.16em] font-bold" style={{ color: "var(--foreground-dim)" }}>Sector Read-Through</p>
+              <div className="grid grid-cols-1 gap-px sm:grid-cols-2">
+                {stockSectors.slice(0, 6).map((sector: any) => (
+                  <div key={`stock-sector-${sector.sectorName}`} className="border px-3 py-3" style={{ borderColor: B }}>
+                    <div className="flex items-baseline justify-between gap-4">
+                      <span className="truncate text-[11px] font-mono uppercase" style={{ color: "var(--foreground)" }}>{sector.sectorName}</span>
+                      <span className="text-[11px] font-mono font-bold tabular-nums" style={{ color: n(sector.changePct24h) != null && n(sector.changePct24h)! >= 0 ? "var(--bull)" : "var(--bear)" }}>{pct(sector.changePct24h)}</span>
+                    </div>
+                    <p className="mt-2 text-[10px] font-mono tabular-nums" style={{ color: "var(--foreground-faint)" }}>Market cap {money(sector.totalMarketCap)}</p>
+                  </div>
                 ))}
               </div>
-            ) : null}
+            </div>
+          ) : null}
+        </div>
+
+        <div>
+          <div className="border-b px-5 py-5" style={{ borderColor: B }}>
+            <div className="flex flex-wrap items-end justify-between gap-4">
+              <div>
+                <p className="text-[11px] font-mono uppercase tracking-[0.16em] font-bold" style={{ color: "var(--foreground-dim)" }}>BTC Treasury Board</p>
+                <p className="mt-2 max-w-xl text-[12px] font-mono leading-relaxed" style={{ color: "var(--foreground-muted)" }}>
+                  Companies holding Bitcoin on balance sheet, ranked by size and acquisition activity.
+                </p>
+              </div>
+              <div className="text-right">
+                <p className="text-[28px] font-mono font-bold leading-none tabular-nums" style={{ color: "var(--foreground)" }}>{compact(totalBtc)}</p>
+                <p className="mt-2 text-[10px] font-mono uppercase tracking-[0.14em]" style={{ color: "var(--foreground-faint)" }}>BTC Held</p>
+              </div>
+            </div>
+            <div className="mt-5 grid grid-cols-3 gap-px">
+              <div className="border px-3 py-3" style={{ borderColor: "rgba(255,255,255,0.07)" }}>
+                <DataCell label="Companies" value={String(treasuries.length)} />
+              </div>
+              <div className="border px-3 py-3" style={{ borderColor: "rgba(255,255,255,0.07)" }}>
+                <DataCell label="Largest" value={topTreasury?.ticker ?? "--"} />
+              </div>
+              <div className="border px-3 py-3" style={{ borderColor: "rgba(255,255,255,0.07)" }}>
+                <DataCell label="Cost Basis" value={money(totalCost)} />
+              </div>
+            </div>
           </div>
-          );
-        })}
-      </div>
-      </div>
+          <div>
+            <div className="hidden grid-cols-[1fr_112px_104px_116px] gap-3 border-b px-5 py-3 text-[10px] font-mono uppercase tracking-[0.12em] md:grid" style={{ borderColor: "rgba(255,255,255,0.06)", color: "var(--foreground-faint)" }}>
+              <span>Company</span>
+              <span>Holding</span>
+              <span>Avg Cost</span>
+              <span>Latest Buy</span>
+            </div>
+            {treasuries.map((company: any) => {
+              const holding = n(company.btcHolding) ?? 0;
+              const latestPurchase = (company.recentPurchases ?? [])[0];
+              return (
+                <div key={company.ticker} className="grid grid-cols-1 gap-3 border-b px-5 py-4 last:border-b-0 md:grid-cols-[1fr_112px_104px_116px] md:items-center" style={{ borderColor: "rgba(255,255,255,0.06)" }}>
+                  <div className="min-w-0">
+                    <div className="flex items-baseline gap-3">
+                      <p className="text-[13px] font-mono font-bold uppercase" style={{ color: "var(--foreground)" }}>{company.ticker}</p>
+                      <p className="truncate text-[10px] font-mono uppercase tracking-[0.1em]" style={{ color: "var(--foreground-faint)" }}>Treasury</p>
+                    </div>
+                    <p className="mt-1 truncate text-[11px] font-mono" style={{ color: "var(--foreground-muted)" }}>{company.name}</p>
+                  </div>
+                  <div className="grid grid-cols-3 gap-3 md:contents">
+                    <div className="min-w-0">
+                      <span className="block text-[9px] font-mono uppercase tracking-[0.12em] md:hidden" style={{ color: "var(--foreground-faint)" }}>Holding</span>
+                      <span className="text-[12px] font-mono font-bold tabular-nums" style={{ color: "var(--foreground)" }}>{compact(company.btcHolding)} BTC</span>
+                    </div>
+                    <div>
+                      <span className="block text-[9px] font-mono uppercase tracking-[0.12em] md:hidden" style={{ color: "var(--foreground-faint)" }}>Avg Cost</span>
+                      <span className="text-[12px] font-mono tabular-nums" style={{ color: "var(--foreground-muted)" }}>{priceMoney(company.avgBtcCost)}</span>
+                    </div>
+                    <div>
+                      <span className="block text-[9px] font-mono uppercase tracking-[0.12em] md:hidden" style={{ color: "var(--foreground-faint)" }}>Latest Buy</span>
+                      <span className="text-[12px] font-mono tabular-nums" style={{ color: "var(--foreground-muted)" }}>{latestPurchase ? `${compact(latestPurchase.btcAcquired)} BTC` : dateLabel(company.latestPurchaseDate)}</span>
+                    </div>
+                  </div>
+                  <div className="h-1.5 border md:col-span-4" style={{ borderColor: B, background: "rgba(255,255,255,0.04)" }}>
+                    <div className="h-full" style={{ width: `${Math.max(3, (holding / maxTreasuryHolding) * 100)}%`, background: "rgba(247,147,26,0.78)" }} />
+                  </div>
+                  <div className="flex flex-wrap gap-2 md:col-span-4">
+                    <span className="border px-2 py-1 text-[10px] font-mono tabular-nums" style={{ borderColor: B, color: "var(--foreground-faint)" }}>
+                      Cost {money(company.acquisitionCost)}
+                    </span>
+                    {latestPurchase?.date ? (
+                      <span className="border px-2 py-1 text-[10px] font-mono tabular-nums" style={{ borderColor: B, color: "var(--foreground-faint)" }}>
+                        {dateLabel(latestPurchase.date)}
+                      </span>
+                    ) : null}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+              </div>
     </div>
   );
 }
