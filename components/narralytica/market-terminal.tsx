@@ -267,6 +267,14 @@ function directionPhrase(...values: unknown[]) {
   return "trade mixed";
 }
 
+function deskTitle(value: unknown) {
+  if (!value) return "";
+  return String(value)
+    .trim()
+    .toLowerCase()
+    .replace(/\b[a-z]/g, (letter) => letter.toUpperCase());
+}
+
 function tokenAmount(value: unknown) {
   const parsed = n(value);
   if (parsed == null) return "--";
@@ -858,13 +866,16 @@ export function DeskView({ desk, brief }: { desk: any; brief?: any }) {
   const oiDelta = pctChange(latestOi.all, previousOi.all);
   const macroRisk = (brief?.week_ahead ?? []).some((item: any) => item.importance === "high") ? "high" : macro.length > 0 ? "medium" : "low";
   const catalyst = (brief?.week_ahead ?? []).find((item: any) => item.importance === "high") ?? (brief?.week_ahead ?? [])[0];
-  const readableHeadline = `Crypto market cap is ${money(marketCap.latest)} while BTC and ETH ${directionPhrase(btc.changePct24h, eth.changePct24h)} ahead of ${catalyst?.label ?? "macro catalysts"}`;
-  const readableSubheadline = [
+  const fallbackHeadline = `Crypto market cap is ${money(marketCap.latest)} while BTC and ETH ${directionPhrase(btc.changePct24h, eth.changePct24h)} ahead of ${catalyst?.label ?? "macro catalysts"}`;
+  const fallbackSubheadline = [
     `Crypto market cap ${money(marketCap.latest)} (${pct(marketCap.dayChangePct)})`,
     `BTC ${priceMoney(btc.price)} (${pct(btc.changePct24h)})`,
     `ETH ${priceMoney(eth.price)} (${pct(eth.changePct24h)})`,
     `Fear & Greed ${compact(fearGreed.latest)}`,
   ].join(" · ");
+  const readableHeadline = deskTitle(brief?.trade_setup?.title) || deskTitle(brief?.headline) || fallbackHeadline;
+  const readableSubheadline = brief?.trade_setup?.analysis || brief?.subheadline || fallbackSubheadline;
+  const briefStamp = brief?.headline && brief?.subheadline ? `${brief.headline} / ${brief.subheadline}` : brief?.headline;
   const heat = [
     { label: "Spot", value: pct(marketCap.dayChangePct), tone: n(marketCap.dayChangePct) != null && n(marketCap.dayChangePct)! >= 0 ? "up" : "down" },
     { label: "BTC ETF", value: money(btcFlow.dailyNetInflow), tone: n(btcFlow.dailyNetInflow) != null && n(btcFlow.dailyNetInflow)! >= 0 ? "up" : "down" },
@@ -959,9 +970,11 @@ export function DeskView({ desk, brief }: { desk: any; brief?: any }) {
                 <p className="mt-5 max-w-md text-[12px] font-mono leading-relaxed" style={{ color: "var(--foreground-muted)" }}>
                   {readableSubheadline}
                 </p>
-                <div className="mt-7 inline-flex border px-4 py-2 text-[10px] font-mono uppercase tracking-[0.18em]" style={{ borderColor: B, color: "var(--foreground-faint)" }}>
-                  AI brief: {brief.headline}
-                </div>
+                {briefStamp ? (
+                  <div className="mt-7 inline-flex max-w-md border px-4 py-2 text-[10px] font-mono uppercase tracking-[0.14em]" style={{ borderColor: B, color: "var(--foreground-faint)" }}>
+                    AI brief: {briefStamp}
+                  </div>
+                ) : null}
                 <div className="mt-8 grid grid-cols-2 gap-px">
                   <div className="border px-3 py-3" style={{ borderColor: "rgba(255,255,255,0.12)" }}>
                     <DataCell label="BTC" value={`${priceMoney(btc.price)} ${pct(btc.changePct24h)}`} tone={n(btc.changePct24h) != null && n(btc.changePct24h)! >= 0 ? "up" : "down"} />
