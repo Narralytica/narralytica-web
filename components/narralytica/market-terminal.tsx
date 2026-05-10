@@ -113,7 +113,7 @@ function Sparkline({ rows, field }: { rows: Record<string, unknown>[]; field: st
 function FearGreedRail({ latest, delta }: { latest: unknown; delta: unknown }) {
   const value = Math.max(0, Math.min(100, n(latest) ?? 0));
   const deltaValue = n(delta);
-  const tone = value < 35 ? "var(--bear)" : value < 65 ? "#d6a83d" : "var(--bull)";
+  const tone = value < 35 ? "var(--bear)" : value < 65 ? "var(--foreground-muted)" : "var(--bull)";
 
   return (
     <div>
@@ -127,7 +127,7 @@ function FearGreedRail({ latest, delta }: { latest: unknown; delta: unknown }) {
         <div
           className="relative h-2 overflow-hidden rounded-full"
           style={{
-            background: "linear-gradient(90deg, var(--bear) 0%, var(--bear) 33%, #d6a83d 33%, #d6a83d 66%, var(--bull) 66%, var(--bull) 100%)",
+            background: "linear-gradient(90deg, var(--bear) 0%, var(--bear) 33%, var(--foreground-muted) 33%, var(--foreground-muted) 66%, var(--bull) 66%, var(--bull) 100%)",
           }}
         >
           <div className="absolute inset-0 bg-black/35" />
@@ -880,13 +880,13 @@ export function DeskView({ desk, brief }: { desk: any; brief?: any }) {
       {brief ? (
         <div className="border-b" style={{ borderColor: B }}>
           {briefIsStale ? (
-            <div className="border-b px-5 py-3 text-[11px] font-mono uppercase tracking-[0.14em]" style={{ borderColor: B, color: "#d6841f", background: "rgba(214,132,31,0.08)" }}>
+            <div className="border-b px-5 py-3 text-[11px] font-mono uppercase tracking-[0.14em]" style={{ borderColor: B, color: "var(--foreground-muted)", background: "rgba(255,255,255,0.045)" }}>
               Brief generated before latest desk payload. Refresh the daily brief when you want AI commentary aligned to the newest data.
             </div>
           ) : null}
           <div className="grid grid-cols-1 xl:grid-cols-[0.62fr_1.38fr]" style={{ borderColor: B }}>
           <div className="relative min-h-[460px] overflow-hidden border-b px-5 py-7 sm:px-6 sm:py-8 xl:min-h-[560px] xl:border-b-0 xl:border-r" style={{ borderColor: B }}>
-            <div className="absolute inset-0" style={{ background: "radial-gradient(circle at 26% 18%, rgba(0,145,255,0.24), transparent 28%), radial-gradient(circle at 76% 72%, rgba(214,132,31,0.18), transparent 34%), linear-gradient(145deg, #030404 0%, #080b0d 52%, #020202 100%)" }} />
+            <div className="absolute inset-0" style={{ background: "radial-gradient(circle at 26% 18%, rgba(0,145,255,0.18), transparent 28%), radial-gradient(circle at 76% 72%, rgba(21,154,91,0.16), transparent 34%), linear-gradient(145deg, #030404 0%, #070909 52%, #020202 100%)" }} />
             <div className="absolute inset-0 opacity-[0.16]" style={{ backgroundImage: "linear-gradient(rgba(255,255,255,0.08) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.08) 1px, transparent 1px)", backgroundSize: "42px 42px" }} />
             <div className="absolute inset-x-[-12%] bottom-[-12%] h-[46%] rotate-[-6deg] opacity-70">
               {Array.from({ length: 14 }).map((_, index) => (
@@ -897,7 +897,7 @@ export function DeskView({ desk, brief }: { desk: any; brief?: any }) {
                     left: `${index % 3 === 0 ? 0 : 8}%`,
                     right: `${index % 4 === 0 ? 4 : 18}%`,
                     top: `${index * 7}%`,
-                    background: index % 5 === 0 ? "rgba(214,132,31,0.55)" : "rgba(255,255,255,0.13)",
+                    background: index % 5 === 0 ? "rgba(21,154,91,0.46)" : "rgba(255,255,255,0.13)",
                   }}
                 />
               ))}
@@ -909,7 +909,7 @@ export function DeskView({ desk, brief }: { desk: any; brief?: any }) {
                     left: `${8 + index * 8}%`,
                     top: `${index % 2 === 0 ? 4 : 20}%`,
                     bottom: `${index % 3 === 0 ? 12 : 0}%`,
-                    background: index % 4 === 0 ? "rgba(0,145,255,0.42)" : "rgba(255,255,255,0.12)",
+                    background: index % 4 === 0 ? "rgba(0,145,255,0.32)" : "rgba(255,255,255,0.12)",
                   }}
                 />
               ))}
@@ -920,8 +920,8 @@ export function DeskView({ desk, brief }: { desk: any; brief?: any }) {
                   style={{
                     left: `${5 + ((index * 17) % 86)}%`,
                     top: `${8 + ((index * 23) % 74)}%`,
-                    background: index % 4 === 0 ? "rgba(214,132,31,0.9)" : "rgba(255,255,255,0.22)",
-                    boxShadow: index % 4 === 0 ? "0 0 18px rgba(214,132,31,0.4)" : "none",
+                    background: index % 4 === 0 ? "rgba(21,154,91,0.88)" : "rgba(255,255,255,0.22)",
+                    boxShadow: index % 4 === 0 ? "0 0 18px rgba(21,154,91,0.35)" : "none",
                   }}
                 />
               ))}
@@ -936,7 +936,7 @@ export function DeskView({ desk, brief }: { desk: any; brief?: any }) {
                     style={{
                       left: `${index * 3}%`,
                       height: `${height}%`,
-                      background: index % 7 === 0 ? "rgba(0,145,255,0.58)" : "rgba(255,255,255,0.1)",
+                      background: index % 7 === 0 ? "rgba(0,145,255,0.46)" : "rgba(255,255,255,0.1)",
                     }}
                   />
                 );
@@ -982,7 +982,7 @@ export function DeskView({ desk, brief }: { desk: any; brief?: any }) {
           <div>
             <div className="grid grid-cols-2 border-b md:grid-cols-4 xl:grid-cols-7" style={{ borderColor: B }}>
               {heat.map((item) => {
-                const color = item.tone === "up" ? "var(--bull)" : item.tone === "down" ? "var(--bear)" : item.tone === "neutral" ? "#d6841f" : "var(--foreground-faint)";
+                const color = item.tone === "up" ? "var(--bull)" : item.tone === "down" ? "var(--bear)" : item.tone === "neutral" ? "var(--foreground-muted)" : "var(--foreground-faint)";
                 return (
                   <div key={`desk-heat-${item.label}`} className="border-r px-4 py-4 last:border-r-0" style={{ borderColor: B }}>
                     <p className="text-[10px] font-mono uppercase tracking-[0.14em]" style={{ color: "var(--foreground-faint)" }}>{item.label}</p>
@@ -999,7 +999,7 @@ export function DeskView({ desk, brief }: { desk: any; brief?: any }) {
                   </p>
                   <div className="grid gap-4">
                     {(brief.whats_new ?? []).map((item: any, index: number) => {
-                      const color = item.tone === "green" ? "var(--bull)" : item.tone === "red" ? "var(--bear)" : "#d6841f";
+                      const color = item.tone === "green" ? "var(--bull)" : item.tone === "red" ? "var(--bear)" : "var(--foreground-muted)";
                       return (
                         <div key={`brief-new-${index}`} className="grid grid-cols-[10px_1fr] gap-4">
                           <span className="mt-2 h-2 w-2 rounded-full" style={{ background: color }} />
@@ -1013,7 +1013,7 @@ export function DeskView({ desk, brief }: { desk: any; brief?: any }) {
                   </div>
                 </div>
                 <div className="px-6 py-7">
-                  <p className="mb-4 text-[11px] font-mono uppercase tracking-[0.22em]" style={{ color: "#d6841f" }}>
+                  <p className="mb-4 text-[11px] font-mono uppercase tracking-[0.22em]" style={{ color: "var(--foreground-muted)" }}>
                     Market Setup
                   </p>
                   <div className="border px-5 py-5" style={{ borderColor: B, background: "rgba(255,255,255,0.02)" }}>
@@ -1032,22 +1032,22 @@ export function DeskView({ desk, brief }: { desk: any; brief?: any }) {
                     Watchlist Matrix
                   </p>
                   <div className="border" style={{ borderColor: B }}>
-                    <div className="hidden grid-cols-[72px_1fr_auto] gap-3 border-b px-3 py-2 text-[10px] font-mono uppercase tracking-[0.12em] sm:grid" style={{ borderColor: B, color: "var(--foreground-faint)" }}>
+                    <div className="hidden grid-cols-[64px_minmax(0,1fr)_minmax(160px,0.6fr)] gap-4 border-b px-3 py-2 text-[10px] font-mono uppercase tracking-[0.12em] sm:grid" style={{ borderColor: B, color: "var(--foreground-faint)" }}>
                       <span>Asset</span>
                       <span>Watch</span>
                       <span>Risk</span>
                     </div>
                     {(brief.trade_setup?.watchlist ?? []).slice(0, 6).map((token: any) => (
-                      <div key={`brief-watch-${token.symbol}`} className="grid grid-cols-1 gap-2 border-b px-3 py-3 text-[11px] font-mono last:border-b-0 sm:grid-cols-[72px_1fr_auto] sm:gap-3" style={{ borderColor: "rgba(255,255,255,0.06)" }}>
+                      <div key={`brief-watch-${token.symbol}`} className="grid grid-cols-1 gap-2 border-b px-3 py-4 text-[11px] font-mono last:border-b-0 sm:grid-cols-[64px_minmax(0,1fr)_minmax(160px,0.6fr)] sm:gap-4" style={{ borderColor: "rgba(255,255,255,0.06)" }}>
                         <div className="flex items-baseline justify-between gap-3 sm:block">
                           <span className="font-bold" style={{ color: "var(--foreground)" }}>{token.symbol}</span>
-                          <span className="max-w-[180px] truncate text-right sm:hidden" style={{ color: "var(--bear)" }}>{token.risk}</span>
+                          <span className="max-w-[70%] text-right leading-relaxed sm:hidden" style={{ color: "var(--bear)" }}>{token.risk}</span>
                         </div>
                         <span className="min-w-0" style={{ color: "var(--foreground-muted)" }}>
                           <span style={{ color: "var(--foreground)" }}>{token.watch_for}</span>
-                          <span className="mt-1 block whitespace-normal sm:truncate" style={{ color: "var(--foreground-faint)" }}>{token.reason}</span>
+                          <span className="mt-1 block whitespace-normal leading-relaxed" style={{ color: "var(--foreground-faint)" }}>{token.reason}</span>
                         </span>
-                        <span className="hidden max-w-[120px] truncate text-right sm:block" style={{ color: "var(--bear)" }}>{token.risk}</span>
+                        <span className="hidden min-w-0 whitespace-normal break-words text-right leading-relaxed sm:block" style={{ color: "var(--bear)" }}>{token.risk}</span>
                       </div>
                     ))}
                   </div>
@@ -1080,7 +1080,7 @@ export function DeskView({ desk, brief }: { desk: any; brief?: any }) {
                         <div key={`brief-week-${index}`} className="relative min-h-[168px] border px-4 py-4" style={{ borderColor: high ? "rgba(239,68,68,0.38)" : B, background: high ? "rgba(239,68,68,0.055)" : "rgba(255,255,255,0.015)" }}>
                           <div className="mb-4 flex items-center justify-between gap-3">
                             <span className="text-[10px] font-mono font-bold uppercase tracking-[0.12em]" style={{ color: "var(--foreground-faint)" }}>{dateLabel(item.date)}</span>
-                            <span className="h-2 w-2 rounded-full" style={{ background: high ? "var(--bear)" : "#d6841f" }} />
+                            <span className="h-2 w-2 rounded-full" style={{ background: high ? "var(--bear)" : "var(--foreground-muted)" }} />
                           </div>
                           <p className="text-[13px] font-mono font-bold leading-snug" style={{ color: "var(--foreground)" }}>{item.label}</p>
                           <p className="mt-3 text-[11px] font-mono leading-relaxed" style={{ color: "var(--foreground-muted)" }}>{item.detail}</p>
@@ -1129,7 +1129,7 @@ export function DeskView({ desk, brief }: { desk: any; brief?: any }) {
                     <div key={`desk-flow-${flow.asset}`} className="border px-4 py-4" style={{ borderColor: B }}>
                       <div className="flex items-baseline justify-between gap-4">
                         <span className="text-[12px] font-mono font-bold" style={{ color: "var(--foreground)" }}>{flow.asset}</span>
-                        <span className="text-[10px] font-mono uppercase tracking-[0.14em]" style={{ color: aligned ? "var(--bull)" : "#d6841f" }}>{aligned ? "Aligned" : "Mixed"}</span>
+                        <span className="text-[10px] font-mono uppercase tracking-[0.14em]" style={{ color: aligned ? "var(--bull)" : "var(--foreground-muted)" }}>{aligned ? "Aligned" : "Mixed"}</span>
                       </div>
                       <div className="mt-4 grid grid-cols-[92px_1fr] items-center gap-4">
                         <span className="text-[11px] font-mono font-bold tabular-nums" style={{ color: net != null && net < 0 ? "var(--bear)" : "var(--bull)" }}>{net != null && net > 0 ? "+" : ""}{money(net)}</span>
@@ -1928,7 +1928,7 @@ function WatchView({ watchlist, analysis }: { watchlist: any; analysis?: any }) 
                     </div>
                   </div>
                   <div className="h-1.5 border md:col-span-4" style={{ borderColor: B, background: "rgba(255,255,255,0.04)" }}>
-                    <div className="h-full" style={{ width: `${Math.max(3, (holding / maxTreasuryHolding) * 100)}%`, background: "rgba(247,147,26,0.78)" }} />
+                    <div className="h-full" style={{ width: `${Math.max(3, (holding / maxTreasuryHolding) * 100)}%`, background: "var(--foreground-dim)" }} />
                   </div>
                   <div className="flex flex-wrap gap-2 md:col-span-4">
                     <span className="border px-2 py-1 text-[10px] font-mono tabular-nums" style={{ borderColor: B, color: "var(--foreground-faint)" }}>

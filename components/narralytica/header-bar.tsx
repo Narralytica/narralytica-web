@@ -21,9 +21,45 @@ export function HeaderBar({
         className="flex h-14 min-w-0 flex-1 items-center border-b px-4 md:flex-none md:border-b-0 md:border-r md:px-6"
         style={{ borderColor: "var(--border-subtle)" }}
       >
-        <span className="truncate font-mono text-[12px] tracking-[0.22em] uppercase select-none font-bold sm:text-[13px] sm:tracking-[0.28em]" style={{ color: "var(--foreground)" }}>
-          Narralytica
-        </span>
+        <div className="flex min-w-0 items-center gap-3" aria-label="Narralytica">
+          <style>{`
+            @keyframes narralyticaWordScan {
+              0% { transform: translateX(-110%); opacity: 0; }
+              14% { opacity: 0.75; }
+              52% { opacity: 0.45; }
+              100% { transform: translateX(118%); opacity: 0; }
+            }
+            @keyframes narralyticaWordPulse {
+              0%, 100% { opacity: 0.22; transform: scaleX(0.72); }
+              50% { opacity: 0.7; transform: scaleX(1); }
+            }
+          `}</style>
+          <svg viewBox="0 0 64 64" className="h-5 w-5 shrink-0" aria-hidden="true">
+            <path d="M25 10H15C12.2386 10 10 12.2386 10 15V49C10 51.7614 12.2386 54 15 54H25" fill="none" stroke="rgba(255,255,255,0.88)" strokeWidth="6" strokeLinecap="square" />
+            <path d="M39 10H49C51.7614 10 54 12.2386 54 15V49C54 51.7614 51.7614 54 49 54H39" fill="none" stroke="rgba(255,255,255,0.88)" strokeWidth="6" strokeLinecap="square" />
+            <path d="M18 43L29 31L37 38L48 22" fill="none" stroke="rgba(255,255,255,0.88)" strokeWidth="6" strokeLinecap="square" strokeLinejoin="miter" />
+            <circle cx="48" cy="22" r="4" fill="rgba(255,255,255,0.88)" />
+          </svg>
+          <div className="relative overflow-hidden pr-1">
+            <span
+              className="pointer-events-none absolute inset-y-0 left-0 w-12"
+              style={{
+                background: "linear-gradient(90deg, transparent, rgba(21,154,91,0.36), transparent)",
+                animation: "narralyticaWordScan 3.8s ease-in-out infinite",
+              }}
+            />
+            <span
+              className="pointer-events-none absolute bottom-1 left-0 h-px w-full origin-left"
+              style={{
+                background: "linear-gradient(90deg, rgba(21,154,91,0), rgba(21,154,91,0.72), rgba(21,154,91,0))",
+                animation: "narralyticaWordPulse 3.8s ease-in-out infinite",
+              }}
+            />
+            <span className="relative truncate font-mono text-[12px] tracking-[0.22em] uppercase select-none font-bold sm:text-[13px] sm:tracking-[0.28em]" style={{ color: "var(--foreground)" }}>
+              Narralytica
+            </span>
+          </div>
+        </div>
       </div>
 
       {/* View tabs */}
@@ -68,27 +104,28 @@ export function HeaderBar({
         <div className="relative h-7 w-16 overflow-hidden" aria-hidden="true">
           <style>{`
             @keyframes narralyticaHeaderTrace {
-              0% { stroke-dashoffset: 84; opacity: 0.25; }
-              42% { opacity: 1; }
-              100% { stroke-dashoffset: 0; opacity: 0.45; }
+              0% { stroke-dashoffset: 64; opacity: 0.55; }
+              50% { stroke-dashoffset: 0; opacity: 1; }
+              100% { stroke-dashoffset: -64; opacity: 0.55; }
             }
             @keyframes narralyticaHeaderPulse {
-              0%, 100% { transform: scale(0.78); opacity: 0.45; }
+              0%, 100% { transform: scale(0.82); opacity: 0.58; }
               50% { transform: scale(1); opacity: 1; }
             }
             @keyframes narralyticaHeaderScan {
               0% { transform: translateX(-28px); opacity: 0; }
-              18% { opacity: 0.55; }
+              20% { opacity: 0.55; }
+              80% { opacity: 0.55; }
               100% { transform: translateX(84px); opacity: 0; }
             }
           `}</style>
-          <div className="absolute inset-y-1 w-7" style={{ background: "linear-gradient(90deg, transparent, rgba(21,154,91,0.16), transparent)", animation: "narralyticaHeaderScan 3s linear infinite" }} />
+          <div className="absolute inset-y-1 w-7" style={{ background: "linear-gradient(90deg, transparent, rgba(21,154,91,0.16), transparent)", animation: "narralyticaHeaderScan 2.4s linear infinite" }} />
           <svg viewBox="0 0 72 30" className="h-7 w-16">
             <path d="M14 6H9C7.3 6 6 7.3 6 9V21C6 22.7 7.3 24 9 24H14" fill="none" stroke="#159A5B" strokeWidth="2.4" strokeLinecap="round" />
             <path d="M58 6H63C64.7 6 66 7.3 66 9V21C66 22.7 64.7 24 63 24H58" fill="none" stroke="#159A5B" strokeWidth="2.4" strokeLinecap="round" />
             <path d="M18 21L29 13L39 18L51 8L57 11" fill="none" stroke="rgba(21,154,91,0.2)" strokeWidth="6" strokeLinecap="round" strokeLinejoin="round" />
-            <path d="M18 21L29 13L39 18L51 8L57 11" fill="none" stroke="#159A5B" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" strokeDasharray="32 32" style={{ animation: "narralyticaHeaderTrace 3s ease-in-out infinite" }} />
-            <circle cx="51" cy="8" r="3.3" fill="#159A5B" style={{ transformOrigin: "51px 8px", animation: "narralyticaHeaderPulse 3s ease-in-out infinite" }} />
+            <path d="M18 21L29 13L39 18L51 8L57 11" fill="none" stroke="#159A5B" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" strokeDasharray="32 32" style={{ animation: "narralyticaHeaderTrace 2.4s linear infinite" }} />
+            <circle cx="51" cy="8" r="3.3" fill="#159A5B" style={{ transformOrigin: "51px 8px", animation: "narralyticaHeaderPulse 2.4s ease-in-out infinite" }} />
           </svg>
         </div>
       </div>

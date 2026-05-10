@@ -5,15 +5,15 @@
 
 :root {
   /* ── Surfaces ── */
-  --background:     oklch(0.13 0 0);        /* charcoal canvas */
-  --surface:        oklch(0.095 0 0);       /* deep panel */
-  --surface-2:      oklch(0.145 0 0);       /* raised card */
-  --surface-3:      oklch(0.18 0 0);        /* elevated card */
+  --background:     oklch(0 0 0);           /* black canvas */
+  --surface:        oklch(0 0 0);           /* black panel */
+  --surface-2:      oklch(0.045 0 0);       /* near-black card */
+  --surface-3:      oklch(0.07 0 0);        /* subtle elevated card */
 
   /* ── Borders ── */
-  --border-subtle:  oklch(0.21 0 0);
-  --border:         oklch(0.27 0 0);
-  --border-bright:  oklch(0.39 0 0);
+  --border-subtle:  rgba(255,255,255,0.08);
+  --border:         rgba(255,255,255,0.12);
+  --border-bright:  rgba(255,255,255,0.22);
 
   /* ── Typography ── */
   --foreground:       oklch(0.94 0 0);      /* #f0f0f0  */
@@ -21,20 +21,20 @@
   --foreground-dim:   oklch(0.56 0 0);      /* readable secondary text */
   --foreground-faint: oklch(0.44 0 0);      /* visible tertiary text */
 
-  /* ── Signal — vivid & clear ── */
+  /* ── Signal — directional data only ── */
   --bull:            oklch(0.72 0.19 145);  /* #22c55e  */
   --bull-dim:        oklch(0.55 0.15 145);
   --bull-track:      oklch(0.14 0.04 145);  /* very dark green */
   --bear:            oklch(0.62 0.22 25);   /* #ef4444  */
   --bear-dim:        oklch(0.50 0.18 25);
   --bear-track:      oklch(0.14 0.06 25);   /* very dark red */
-  --neutral-fg:      oklch(0.65 0.22 250);  /* electric blue */
-  --neutral-track:   oklch(0.12 0.05 250);  /* very dark blue */
+  --neutral-fg:      var(--foreground-muted);
+  --neutral-track:   oklch(0.16 0 0);
 
-  /* ── Accent — electric blue ── */
-  --accent:          oklch(0.65 0.22 250);  /* #3b82f6  */
-  --accent-dim:      oklch(0.50 0.16 250);
-  --accent-track:    oklch(0.12 0.05 250);
+  /* ── Accent — monochrome UI selection ── */
+  --accent:          oklch(0.82 0 0);
+  --accent-dim:      oklch(0.58 0 0);
+  --accent-track:    oklch(0.17 0 0);
 
   /* ── shadcn compat ── */
   --accent-blue:              var(--accent);
@@ -59,8 +59,8 @@
   --chart-1: var(--bull);
   --chart-2: var(--bear);
   --chart-3: var(--accent);
-  --chart-4: oklch(0.78 0.14 75);
-  --chart-5: oklch(0.60 0.12 290);
+  --chart-4: var(--foreground-dim);
+  --chart-5: var(--foreground-faint);
 }
 
 @theme inline {
@@ -142,9 +142,7 @@
 @media (min-width: 641px) {
   .narralytica-shell {
     min-height: 100vh;
-    background:
-      radial-gradient(circle at 18% 0%, rgba(255,255,255,0.045), transparent 24rem),
-      linear-gradient(180deg, oklch(0.16 0 0), var(--background) 18rem);
+    background: var(--background);
   }
 
   .narralytica-shell > div:not(header),
@@ -157,8 +155,8 @@
   }
 
   .narralytica-shell header {
-    background: rgba(18,18,18,0.92) !important;
-    backdrop-filter: blur(18px);
+    background: var(--background) !important;
+    backdrop-filter: none;
   }
 
   .narralytica-shell section,
@@ -167,12 +165,10 @@
     margin-top: 1rem;
     margin-bottom: 1rem;
     overflow: hidden;
-    border: 1px solid var(--border-subtle) !important;
+    border: 1px solid rgba(255,255,255,0.12) !important;
     border-radius: 6px;
-    background:
-      linear-gradient(135deg, rgba(255,255,255,0.035), transparent 32%),
-      var(--surface);
-    box-shadow: 0 18px 60px rgba(0,0,0,0.22);
+    background: var(--surface);
+    box-shadow: none;
   }
 
   .narralytica-shell section section {
@@ -185,35 +181,55 @@
   }
 
   .narralytica-shell [style*="borderColor"] {
-    border-color: var(--border-subtle) !important;
+    border-color: rgba(255,255,255,0.055) !important;
+  }
+
+  .narralytica-shell header,
+  .narralytica-shell section,
+  .narralytica-shell footer,
+  .narralytica-shell > div > section:first-child {
+    border-color: rgba(255,255,255,0.12) !important;
   }
 
   .narralytica-shell [class*="border px-"],
   .narralytica-shell [class*="border-b px-"],
   .narralytica-shell article,
   .narralytica-shell button[style*="background"] {
-    background:
-      linear-gradient(135deg, rgba(255,255,255,0.035), transparent 40%),
-      color-mix(in oklch, var(--surface-2) 74%, black) !important;
+    background: var(--surface) !important;
   }
 
   .narralytica-shell [class*="border px-"] {
     position: relative;
+    border-left-color: transparent !important;
+    border-right-color: transparent !important;
+    border-bottom-color: transparent !important;
+    border-top-color: rgba(255,255,255,0.065) !important;
   }
 
   .narralytica-shell [class*="border px-"]::after {
-    content: "";
-    position: absolute;
-    right: -1px;
-    top: -1px;
-    width: 1.1rem;
-    height: 1.1rem;
-    border-left: 1px solid var(--border-subtle);
-    border-bottom: 1px solid var(--border-subtle);
-    background: var(--surface);
-    clip-path: polygon(100% 0, 0 0, 100% 100%);
-    opacity: 0.9;
-    pointer-events: none;
+    display: none;
+  }
+
+  .narralytica-shell [class*="border-r"] {
+    border-right-color: rgba(255,255,255,0.045) !important;
+  }
+
+  .narralytica-shell [class*="border-l"] {
+    border-left-color: rgba(255,255,255,0.045) !important;
+  }
+
+  .narralytica-shell [class*="border-b"] {
+    border-bottom-color: rgba(255,255,255,0.06) !important;
+  }
+
+  .narralytica-shell [class*="border-t"] {
+    border-top-color: rgba(255,255,255,0.06) !important;
+  }
+
+  .narralytica-shell header [class*="border-r"],
+  .narralytica-shell header [class*="border-l"],
+  .narralytica-shell header [class*="border-b"] {
+    border-color: rgba(255,255,255,0.08) !important;
   }
 
   .narralytica-shell p[class*="uppercase"][class*="font-bold"],

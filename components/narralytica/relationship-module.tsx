@@ -27,10 +27,11 @@ type Lookback = "24H" | "3D" | "7D";
 
 const B = "var(--border-subtle)";
 const GREEN = "#22c55e";
+const BRAND_GREEN = "#159A5B";
 const RED = "#ef4444";
-const BLUE = "var(--accent)";
-const MUTED = "rgba(255,255,255,0.38)";
-const GRID = "rgba(255,255,255,0.075)";
+const BLUE = BRAND_GREEN;
+const MUTED = "rgba(255,255,255,0.26)";
+const GRID = "rgba(21,154,91,0.12)";
 const CHART_H = 420;
 const PAD = { top: 28, right: 78, bottom: 42, left: 44 };
 
@@ -377,7 +378,7 @@ function AnalysisToolsDeck({ payload }: { payload?: any }) {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-5" style={{ background: B }}>
-        <div className="min-h-[260px] p-5" style={{ background: "var(--bg)" }}>
+        <div className="min-h-[260px] p-5" style={{ background: "var(--background)" }}>
           <p className="text-[10px] font-mono uppercase tracking-[0.24em]" style={{ color: "var(--foreground-faint)" }}>Macro Shock</p>
           <h3 className="mt-4 text-xl font-mono font-bold leading-tight">{leadMacro?.event ?? "Waiting for macro"}</h3>
           <p className="mt-2 text-[12px] font-mono uppercase tracking-[0.16em]" style={{ color: "var(--foreground-muted)" }}>{dateLabel(leadMacro?.date)}</p>
@@ -394,7 +395,7 @@ function AnalysisToolsDeck({ payload }: { payload?: any }) {
           </p>
         </div>
 
-        <div className="min-h-[260px] p-5" style={{ background: "var(--bg)" }}>
+        <div className="min-h-[260px] p-5" style={{ background: "var(--background)" }}>
           <p className="text-[10px] font-mono uppercase tracking-[0.24em]" style={{ color: "var(--foreground-faint)" }}>Flow Lens</p>
           <h3 className="mt-4 text-3xl font-mono font-bold">{leadFlow?.asset ?? "--"}</h3>
           <p className="mt-2 text-[24px] font-mono font-bold tabular-nums" style={{ color: colorFor(n(leadFlow?.dailyNetInflow) ?? 0) }}>
@@ -406,7 +407,7 @@ function AnalysisToolsDeck({ payload }: { payload?: any }) {
           <MiniFlow rows={leadFlow?.history ?? []} />
         </div>
 
-        <div className="min-h-[260px] p-5" style={{ background: "var(--bg)" }}>
+        <div className="min-h-[260px] p-5" style={{ background: "var(--background)" }}>
           <p className="text-[10px] font-mono uppercase tracking-[0.24em]" style={{ color: "var(--foreground-faint)" }}>Sector Rotation</p>
           <h3 className="mt-4 text-2xl font-mono font-bold">{leadIndex?.ticker ?? "--"}</h3>
           <p className="mt-2 text-[24px] font-mono font-bold tabular-nums" style={{ color: colorFor(n(leadIndex?.changePct24h) ?? 0) }}>
@@ -422,7 +423,7 @@ function AnalysisToolsDeck({ payload }: { payload?: any }) {
           </div>
         </div>
 
-        <div className="min-h-[260px] p-5" style={{ background: "var(--bg)" }}>
+        <div className="min-h-[260px] p-5" style={{ background: "var(--background)" }}>
           <p className="text-[10px] font-mono uppercase tracking-[0.24em]" style={{ color: "var(--foreground-faint)" }}>Unlock / Supply</p>
           <h3 className="mt-4 text-3xl font-mono font-bold">{leadUnlock?.asset ?? "--"}</h3>
           <p className="mt-2 text-[12px] font-mono uppercase tracking-[0.16em]" style={{ color: "var(--foreground-muted)" }}>
@@ -443,7 +444,7 @@ function AnalysisToolsDeck({ payload }: { payload?: any }) {
           </div>
         </div>
 
-        <div className="min-h-[260px] p-5" style={{ background: "var(--bg)" }}>
+        <div className="min-h-[260px] p-5" style={{ background: "var(--background)" }}>
           <p className="text-[10px] font-mono uppercase tracking-[0.24em]" style={{ color: "var(--foreground-faint)" }}>Crypto Stocks Bridge</p>
           <h3 className="mt-4 text-2xl font-mono font-bold">{leadStock?.ticker ?? "--"}</h3>
           <p className="mt-2 truncate text-sm font-semibold" style={{ color: "var(--foreground-muted)" }}>{leadStock?.name ?? "TradFi proxy watch"}</p>
@@ -487,7 +488,7 @@ function EventImpactMap({
   const [hoverMarker, setHoverMarker] = useState<any | null>(null);
   const [width, setWidth] = useState(900);
   const ref = useRef<HTMLDivElement | null>(null);
-  const height = 340;
+  const height = 380;
   const days = eventWindow === "7D" ? 7 : eventWindow === "3D" ? 3 : 1;
 
   useEffect(() => {
@@ -600,6 +601,8 @@ function EventImpactMap({
   }, [chart, items]);
 
   const active = markers.find((marker) => marker.item.id === activeId) ?? markers[0] ?? null;
+  const activeTone = active ? colorFor(active.move) : "var(--foreground-muted)";
+  const latestEvent = markers[0] ?? null;
 
   function handleEventChartHover(event: MouseEvent<SVGRectElement>) {
     if (!markers.length) return;
@@ -614,16 +617,26 @@ function EventImpactMap({
 
   return (
     <div className="border-t" style={{ borderColor: B }}>
-      <div className="grid grid-cols-1 xl:grid-cols-[1fr_360px]" style={{ background: B }}>
-        <div ref={ref} style={{ background: "var(--bg)" }}>
-          <div className="flex flex-col gap-2 border-b px-5 py-4 sm:px-7" style={{ borderColor: B }}>
-            <p className="text-[12px] font-mono uppercase tracking-[0.28em] font-bold" style={{ color: "var(--foreground-dim)" }}>
-              Event Impact Map
-            </p>
-            <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-              <p className="text-[11px] font-mono uppercase tracking-[0.18em]" style={{ color: "var(--foreground-faint)" }}>
-                SoSoValue headlines pinned to the {baseAsset} movement path / default 24H
-              </p>
+      <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_390px]" style={{ background: B }}>
+        <div ref={ref} style={{ background: "var(--background)" }}>
+          <div className="border-b px-5 py-5 sm:px-7" style={{ borderColor: B }}>
+            <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+              <div>
+                <p className="text-[12px] font-mono uppercase tracking-[0.28em] font-bold" style={{ color: "var(--foreground)" }}>
+                  Event Impact Map
+                </p>
+                <p className="mt-2 max-w-2xl text-[11px] font-mono uppercase tracking-[0.16em]" style={{ color: "var(--foreground-faint)" }}>
+                  Headlines pinned to the {baseAsset} movement path
+                </p>
+                <div className="mt-4 flex flex-wrap gap-2">
+                  <span className="border px-3 py-2 text-[10px] font-mono uppercase tracking-[0.14em]" style={{ borderColor: B, color: "var(--foreground-muted)" }}>
+                    {markers.length} events
+                  </span>
+                  <span className="border px-3 py-2 text-[10px] font-mono uppercase tracking-[0.14em]" style={{ borderColor: B, color: latestEvent ? colorFor(latestEvent.move) : "var(--foreground-muted)" }}>
+                    Latest {latestEvent ? fmtPct(latestEvent.move) : "--"}
+                  </span>
+                </div>
+              </div>
               <div className="flex flex-wrap gap-2">
                 {LOOKBACKS.map((item) => (
                   <button
@@ -646,23 +659,23 @@ function EventImpactMap({
 
           <div className="relative px-3 py-5 sm:px-6">
             {loading || loadingSeries ? (
-              <div className="flex h-[340px] items-center justify-center">
+              <div className="flex h-[380px] items-center justify-center">
                 <p className="text-[11px] font-mono uppercase tracking-[0.28em]" style={{ color: "var(--foreground-faint)" }}>
                   Loading {eventWindow} event tape
                 </p>
               </div>
             ) : !chart ? (
-              <div className="flex h-[340px] items-center justify-center">
+              <div className="flex h-[380px] items-center justify-center">
                 <p className="text-[11px] font-mono uppercase tracking-[0.28em]" style={{ color: "var(--foreground-faint)" }}>
                   Waiting for {baseAsset} movement data
                 </p>
               </div>
             ) : (
-              <svg width="100%" height={height} viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none">
+              <svg width="100%" height={height} viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none" style={{ background: "var(--background)" }}>
                 <defs>
                   <linearGradient id="event-impact-fill" x1="0" x2="0" y1="0" y2="1">
-                    <stop offset="0%" stopColor="rgb(255,255,255)" stopOpacity="0.1" />
-                    <stop offset="100%" stopColor="rgb(255,255,255)" stopOpacity="0" />
+                    <stop offset="0%" stopColor="rgb(21,154,91)" stopOpacity="0.14" />
+                    <stop offset="100%" stopColor="rgb(21,154,91)" stopOpacity="0" />
                   </linearGradient>
                 </defs>
                 {[0.25, 0.5, 0.75].map((ratio) => (
@@ -675,8 +688,16 @@ function EventImpactMap({
                     stroke={GRID}
                   />
                 ))}
+                <line
+                  x1={PAD.left}
+                  x2={width - PAD.right}
+                  y1={PAD.top + (height - PAD.top - PAD.bottom) / 2}
+                  y2={PAD.top + (height - PAD.top - PAD.bottom) / 2}
+                  stroke="rgba(255,255,255,0.16)"
+                  strokeDasharray="4 6"
+                />
                 <path d={chart.area} fill="url(#event-impact-fill)" />
-                <path d={chart.line} fill="none" stroke="var(--foreground)" strokeWidth={1.5} vectorEffect="non-scaling-stroke" />
+                <path d={chart.line} fill="none" stroke={((chart.points.at(-1)?.close ?? 0) >= 0) ? BRAND_GREEN : RED} strokeWidth={1.7} vectorEffect="non-scaling-stroke" />
                 <rect
                   x={PAD.left}
                   y={PAD.top}
@@ -706,17 +727,28 @@ function EventImpactMap({
                         x2={marker.x}
                         y1={PAD.top}
                         y2={height - PAD.bottom}
-                        stroke={isActive ? "rgba(255,255,255,0.28)" : "rgba(255,255,255,0.1)"}
+                        stroke={isActive ? "rgba(255,255,255,0.34)" : "rgba(255,255,255,0.09)"}
                         strokeDasharray="4 6"
                       />
                       <circle
                         cx={marker.x}
                         cy={marker.y}
-                        r={isActive ? 6 : 4}
+                        r={isActive ? 7 : 4.5}
                         fill={tone}
                         stroke="#000"
-                        strokeWidth={1.5}
+                        strokeWidth={2}
                       />
+                      {isActive ? (
+                        <circle
+                          cx={marker.x}
+                          cy={marker.y}
+                          r={12}
+                          fill="none"
+                          stroke={tone}
+                          strokeOpacity={0.28}
+                          strokeWidth={1.2}
+                        />
+                      ) : null}
                     </g>
                   );
                 })}
@@ -731,12 +763,13 @@ function EventImpactMap({
             )}
             {hoverMarker ? (
               <div
-                className="pointer-events-none absolute max-w-[280px] border px-3 py-2"
+                className="pointer-events-none absolute z-10 max-w-[300px] border px-3 py-2"
                 style={{
-                  left: `min(calc(100% - 300px), max(18px, ${(hoverMarker.x / width) * 100}%))`,
-                  top: `max(18px, ${hoverMarker.y + 18}px)`,
-                  borderColor: "rgba(255,255,255,0.18)",
-                  background: "rgba(8,8,8,0.94)",
+                  left: Math.min(Math.max(18, hoverMarker.x + 14), Math.max(18, width - 318)),
+                  top: 16,
+                  borderColor: "rgba(21,154,91,0.34)",
+                  background: "rgba(0,0,0,0.68)",
+                  backdropFilter: "blur(10px)",
                   color: "var(--foreground)",
                 }}
               >
@@ -751,49 +784,84 @@ function EventImpactMap({
           </div>
         </div>
 
-        <aside className="border-t px-5 py-5 xl:border-l xl:border-t-0" style={{ background: "var(--surface)", borderColor: B }}>
-          <p className="text-[10px] font-mono uppercase tracking-[0.26em]" style={{ color: "var(--foreground-faint)" }}>
-            Active Event
-          </p>
+        <aside className="border-t xl:border-l xl:border-t-0" style={{ background: "var(--background)", borderColor: B }}>
+          <div className="h-[330px] overflow-y-auto border-b px-5 py-5" style={{ borderColor: B }}>
+            <div className="flex items-center justify-between gap-4">
+              <p className="text-[10px] font-mono uppercase tracking-[0.26em]" style={{ color: "var(--foreground-faint)" }}>
+                Active Event
+              </p>
+              <span className="text-[11px] font-mono font-bold tabular-nums" style={{ color: activeTone }}>
+                {active ? fmtPct(active.move) : "--"}
+              </span>
+            </div>
           {active ? (
             <>
-              <p className="mt-3 text-[12px] font-mono uppercase tracking-[0.18em]" style={{ color: "var(--foreground-dim)" }}>
-                {new Date(active.item.timestamp).toLocaleString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", hour12: false })} / {active.item.source}
-              </p>
-              <h3 className="mt-5 text-xl font-bold leading-tight">{active.item.title}</h3>
+              <div className="mt-4 flex flex-wrap gap-2">
+                <span className="border px-2 py-1 text-[9px] font-mono uppercase tracking-[0.14em]" style={{ borderColor: B, color: "var(--foreground-muted)" }}>
+                  {new Date(active.item.timestamp).toLocaleString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", hour12: false })}
+                </span>
+                <span className="border px-2 py-1 text-[9px] font-mono uppercase tracking-[0.14em]" style={{ borderColor: B, color: "var(--foreground-muted)" }}>
+                  {active.item.source}
+                </span>
+              </div>
+              <h3 className="mt-5 text-lg font-mono font-bold leading-snug">{active.item.title}</h3>
               {active.item.content && (
-                <p className="mt-4 text-sm leading-relaxed" style={{ color: "var(--foreground-muted)" }}>
+                <p className="mt-4 text-[13px] leading-relaxed" style={{ color: "var(--foreground-muted)" }}>
                   {active.item.content}
                 </p>
               )}
-              <p className="mt-5 text-[12px] font-mono font-bold tabular-nums" style={{ color: colorFor(active.move) }}>
-                {baseAsset} path at event: {fmtPct(active.move)}
-              </p>
+              <div className="mt-5 border-t pt-4" style={{ borderColor: B }}>
+                <p className="text-[10px] font-mono uppercase tracking-[0.16em]" style={{ color: "var(--foreground-faint)" }}>
+                  {baseAsset} path at event
+                </p>
+                <p className="mt-2 text-[18px] font-mono font-bold tabular-nums" style={{ color: activeTone }}>
+                  {fmtPct(active.move)}
+                </p>
+              </div>
             </>
           ) : (
             <p className="mt-5 text-sm" style={{ color: "var(--foreground-muted)" }}>
               No headline in the selected movement window yet.
             </p>
           )}
+          </div>
 
-          <div className="mt-6 max-h-[260px] space-y-2 overflow-y-auto pr-1">
+          <div className="px-5 py-5">
+            <div className="mb-3 flex items-center justify-between gap-4">
+              <p className="text-[10px] font-mono uppercase tracking-[0.24em]" style={{ color: "var(--foreground-faint)" }}>
+                Event Queue
+              </p>
+              <p className="text-[10px] font-mono uppercase tracking-[0.14em]" style={{ color: "var(--foreground-faint)" }}>
+                {eventWindow}
+              </p>
+            </div>
+          <div className="max-h-[310px] space-y-3 overflow-y-auto pr-1">
             {markers.map((marker) => (
               <button
                 key={marker.item.id}
                 type="button"
                 onClick={() => setActiveId(marker.item.id)}
-                className="w-full border px-3 py-3 text-left transition-colors"
+                className="w-full border-l px-3 py-3 text-left transition-colors"
                 style={{
-                  borderColor: active?.item.id === marker.item.id ? BLUE : B,
-                  background: active?.item.id === marker.item.id ? "var(--accent-track)" : "transparent",
+                  borderColor: marker.move >= 0 ? GREEN : RED,
+                  background: active?.item.id === marker.item.id ? "rgba(21,154,91,0.08)" : "transparent",
                 }}
               >
-                <p className="text-[10px] font-mono uppercase tracking-[0.16em]" style={{ color: "var(--foreground-faint)" }}>
-                  {new Date(marker.item.timestamp).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: false })}
+                <div className="flex items-center justify-between gap-3">
+                  <p className="text-[10px] font-mono uppercase tracking-[0.16em]" style={{ color: "var(--foreground-faint)" }}>
+                    {new Date(marker.item.timestamp).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: false })}
+                  </p>
+                  <p className="text-[10px] font-mono font-bold tabular-nums" style={{ color: colorFor(marker.move) }}>
+                    {fmtPct(marker.move)}
+                  </p>
+                </div>
+                <p className="mt-2 line-clamp-3 text-[12px] font-semibold leading-snug">{marker.item.title}</p>
+                <p className="mt-2 text-[9px] font-mono uppercase tracking-[0.14em]" style={{ color: "var(--foreground-faint)" }}>
+                  {marker.item.source}
                 </p>
-                <p className="mt-2 line-clamp-2 text-[12px] font-semibold leading-snug">{marker.item.title}</p>
               </button>
             ))}
+          </div>
           </div>
         </aside>
       </div>
@@ -909,9 +977,12 @@ export function RelationshipModule({ asset }: { asset?: string }) {
   const hoverX = hoverIndex !== null && baseSeries?.normalized.length
     ? PAD.left + (hoverIndex / Math.max(1, baseSeries.normalized.length - 1)) * (chartWidth - PAD.left - PAD.right)
     : null;
+  const hoverY = hoverPoint
+    ? PAD.top + (1 - (hoverPoint.close - min) / (max - min || 1)) * (CHART_H - PAD.top - PAD.bottom)
+    : null;
 
   return (
-    <section className="min-h-screen" style={{ background: "var(--bg)" }}>
+    <section className="min-h-screen" style={{ background: "var(--background)" }}>
       <div className="border-b px-5 py-5 sm:px-7" style={{ borderColor: B }}>
         <div className="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
           <div>
@@ -954,7 +1025,7 @@ export function RelationshipModule({ asset }: { asset?: string }) {
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-[1fr_360px]" style={{ background: B }}>
-        <div style={{ background: "var(--bg)" }}>
+        <div style={{ background: "var(--background)" }}>
           <div className="flex flex-col gap-4 border-b px-5 py-4 sm:px-7 lg:flex-row lg:items-center lg:justify-between" style={{ borderColor: B }}>
             <div>
               <p className="text-[12px] font-mono uppercase tracking-[0.28em] font-bold" style={{ color: "var(--foreground-dim)" }}>
@@ -1003,6 +1074,7 @@ export function RelationshipModule({ asset }: { asset?: string }) {
                   height={CHART_H}
                   viewBox={`0 0 ${chartWidth} ${CHART_H}`}
                   preserveAspectRatio="none"
+                  style={{ background: "var(--background)" }}
                   onMouseLeave={() => setHoverIndex(null)}
                   onMouseMove={(event) => {
                     const rect = event.currentTarget.getBoundingClientRect();
@@ -1029,7 +1101,7 @@ export function RelationshipModule({ asset }: { asset?: string }) {
                   {series.map((item) => {
                     const isBase = item.asset === baseAsset;
                     const isSelected = item.asset === selectedRow?.asset;
-                    const stroke = isBase ? BLUE : isSelected ? "var(--foreground)" : MUTED;
+                    const stroke = isBase ? BRAND_GREEN : isSelected ? "var(--foreground)" : MUTED;
                     return (
                       <path
                         key={item.asset}
@@ -1055,7 +1127,7 @@ export function RelationshipModule({ asset }: { asset?: string }) {
                         key={`${item.asset}-label`}
                         x={chartWidth - PAD.right + 12}
                         y={y + 4}
-                        fill={isBase ? BLUE : "var(--foreground)"}
+                        fill={isBase ? BRAND_GREEN : "var(--foreground)"}
                         fontSize={11}
                         fontFamily="var(--font-mono)"
                         fontWeight="bold"
@@ -1065,14 +1137,14 @@ export function RelationshipModule({ asset }: { asset?: string }) {
                     );
                   })}
 
-                  {hoverPoint && hoverX !== null && (
+                  {hoverPoint && hoverX !== null && hoverY !== null && (
                     <>
                       <line x1={hoverX} x2={hoverX} y1={PAD.top} y2={CHART_H - PAD.bottom} stroke="rgba(255,255,255,0.22)" strokeDasharray="4 5" />
                       <circle
                         cx={hoverX}
-                        cy={PAD.top + (1 - (hoverPoint.close - min) / (max - min || 1)) * (CHART_H - PAD.top - PAD.bottom)}
+                        cy={hoverY}
                         r={4}
-                        fill={BLUE}
+                        fill={BRAND_GREEN}
                       />
                     </>
                   )}
@@ -1085,13 +1157,13 @@ export function RelationshipModule({ asset }: { asset?: string }) {
                   </text>
                 </svg>
 
-                {hoverPoint && hoverX !== null && (
+                {hoverPoint && hoverX !== null && hoverY !== null && (
                   <div
-                    className="pointer-events-none absolute top-8 min-w-[180px] border px-3 py-2"
+                    className="pointer-events-none absolute left-1/2 top-1/2 z-10 min-w-[190px] -translate-x-1/2 -translate-y-1/2 border px-3 py-2 text-center"
                     style={{
-                      left: Math.min(Math.max(20, hoverX + 18), Math.max(20, chartWidth - 220)),
-                      borderColor: B,
-                      background: "rgba(5,5,5,0.94)",
+                      borderColor: "rgba(21,154,91,0.34)",
+                      background: "rgba(0,0,0,0.44)",
+                      backdropFilter: "blur(8px)",
                     }}
                   >
                     <p className="text-[10px] font-mono uppercase tracking-[0.18em]" style={{ color: "var(--foreground-faint)" }}>
@@ -1137,21 +1209,21 @@ export function RelationshipModule({ asset }: { asset?: string }) {
             </p>
             <p className="mt-3 text-3xl font-mono font-bold">{baseAsset} / {selectedRow?.asset ?? "--"}</p>
             <div className="mt-5 grid grid-cols-2 gap-px overflow-hidden border" style={{ borderColor: B, background: B }}>
-              <div className="p-3" style={{ background: "var(--bg)" }}>
+              <div className="p-3" style={{ background: "var(--background)" }}>
                 <p className="text-[10px] font-mono uppercase tracking-[0.2em]" style={{ color: "var(--foreground-faint)" }}>Corr</p>
                 <p className="mt-2 text-xl font-mono font-bold">{selectedRow ? fmtDecimal(selectedRow.corr) : "--"}</p>
               </div>
-              <div className="p-3" style={{ background: "var(--bg)" }}>
+              <div className="p-3" style={{ background: "var(--background)" }}>
                 <p className="text-[10px] font-mono uppercase tracking-[0.2em]" style={{ color: "var(--foreground-faint)" }}>Beta</p>
                 <p className="mt-2 text-xl font-mono font-bold">{selectedRow ? fmtDecimal(selectedRow.beta) : "--"}</p>
               </div>
-              <div className="p-3" style={{ background: "var(--bg)" }}>
+              <div className="p-3" style={{ background: "var(--background)" }}>
                 <p className="text-[10px] font-mono uppercase tracking-[0.2em]" style={{ color: "var(--foreground-faint)" }}>Spread</p>
                 <p className="mt-2 text-xl font-mono font-bold" style={{ color: selectedRow ? colorFor(selectedRow.spread) : "var(--foreground)" }}>
                   {selectedRow ? fmtPct(selectedRow.spread) : "--"}
                 </p>
               </div>
-              <div className="p-3" style={{ background: "var(--bg)" }}>
+              <div className="p-3" style={{ background: "var(--background)" }}>
                 <p className="text-[10px] font-mono uppercase tracking-[0.2em]" style={{ color: "var(--foreground-faint)" }}>State</p>
                 <p className="mt-2 text-xl font-mono font-bold uppercase" style={{ color: selectedRow?.state === "inverse" ? RED : selectedRow?.state === "confirming" ? GREEN : "var(--foreground)" }}>
                   {selectedRow?.state ?? "--"}
