@@ -23,9 +23,11 @@ Narralytica helps active crypto users answer:
 ## Data Pipeline
 
 ```text
-Backend data fetchers
+Narralytica backend
         ↓
 website_data/terminal/*.json
+        ↓
+Supabase terminal_payloads table
         ↓
 /api/terminal-data
         ↓
@@ -95,7 +97,7 @@ In the current website, `/api/terminal-data` reads the prepared terminal payload
 
 ## Demo Link
 
-Demo URL: `TBD`
+Demo URL: `https://www.narralytica.xyz`
 
 ## Wave 1 Demo Scope
 
@@ -104,4 +106,3 @@ Demo URL: `TBD`
 - It focuses on clarity, context, and decision-support.
 - It intentionally avoids direct trade recommendations.
 - The pipeline is currently generated from the backend locally by design. The next phase is to add more backend depth before moving the fetch pipeline to a server runtime.
-- The previous decision/signal engine is not exposed in Wave 1. It is planned for Wave 2 after backtesting and refinement work is corrected.
